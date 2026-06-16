@@ -8,6 +8,7 @@ on:
 
 jobs:
   backend-lint:
+    name: Backend Lint
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -16,12 +17,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          python-version: "3.11"
       - run: pip install ruff
       - run: ruff check .
       - run: ruff format --check .
 
   backend-test:
+    name: Backend Tests
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -44,13 +46,15 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
-      - run: pip install -r requirements.txt
-      - run: pytest -v
+          python-version: "3.11"
+      - run: pip install -r requirements.txt pytest-cov
+      - run: pytest -v --cov=app --cov-report=term-missing --cov-report=xml:coverage.xml
         env:
           DATABASE_URL: postgresql+asyncpg://ledgerdesk:ledgerdesk_dev@localhost:5432/ledgerdesk_test
+          SECRET_KEY: ci-test-secret-key
 
-  frontend-build:
+  frontend-lint:
+    name: Frontend Lint
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -62,9 +66,23 @@ jobs:
           node-version: "20"
       - run: npm ci
       - run: npm run lint
+
+  frontend-build:
+    name: Frontend Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm ci
       - run: npm run build
 
   docker-build:
+    name: Docker Build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
