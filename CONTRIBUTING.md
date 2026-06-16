@@ -7,6 +7,14 @@ See [docs/runbooks/local-setup.md](docs/runbooks/local-setup.md) for full setup 
 ### Quick Start
 
 ```bash
+# One-command setup
+make setup
+make demo
+```
+
+Or manually:
+
+```bash
 # Start infrastructure
 make docker-up
 
@@ -25,22 +33,28 @@ npm run dev
 
 ## Project Structure
 
-- `apps/api/` — FastAPI backend
-- `apps/web/` — Next.js frontend
-- `packages/agent-core/` — Agent orchestration and LLM integration
-- `packages/retrieval/` — RAG pipeline (chunking, embedding, search)
-- `packages/evaluation/` — Evaluation harness
-- `sample_data/` — Seed data for cases, policies, transactions
-- `tests/` — Integration and E2E tests
+- `apps/api/` -- FastAPI backend
+- `apps/web/` -- Next.js frontend
+- `packages/agent-core/` -- Agent orchestration and LLM integration
+- `packages/retrieval/` -- RAG pipeline (chunking, embedding, search)
+- `packages/evaluation/` -- Evaluation harness
+- `sample_data/` -- Seed data for cases, policies, transactions
+- `tests/` -- Integration and E2E tests
 
 ## Running Tests
 
 ```bash
+# All tests
+make test
+
 # Backend unit tests
-cd apps/api && source .venv/bin/activate && pytest -v
+make test-api
+
+# Frontend tests
+make test-web
 
 # Integration tests (requires running API)
-pytest tests/integration/ -v
+cd apps/api && source .venv/bin/activate && pytest tests/ -v
 
 # E2E tests (requires running API with seeded data)
 pytest tests/e2e/ -v
@@ -48,9 +62,16 @@ pytest tests/e2e/ -v
 
 ## Code Style
 
-- Backend: Python formatted with `ruff`
+- Backend: Python formatted with `ruff` (run `make format` to auto-fix)
 - Frontend: TypeScript with ESLint + Next.js defaults
 - Commit messages: conventional commits (`feat:`, `fix:`, `docs:`, etc.)
+
+## Linting
+
+```bash
+make lint     # Check for issues
+make format   # Auto-fix formatting
+```
 
 ## Architecture Decisions
 

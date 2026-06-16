@@ -1,12 +1,17 @@
 # LedgerDesk
 
-### An agentic financial operations copilot for transaction exception handling, policy-grounded case resolution, and auditable workflow automation.
+[![CI](https://github.com/KamalasankariS/LedgerDesk/actions/workflows/ci.yml/badge.svg)](https://github.com/KamalasankariS/LedgerDesk/actions/workflows/ci.yml)
+[![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/)
+[![Next.js 15](https://img.shields.io/badge/Next.js-15-black.svg)](https://nextjs.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+**An agentic financial operations copilot for transaction exception handling, policy-grounded case resolution, and auditable workflow automation.**
 
 ---
 
 ## Overview
 
-LedgerDesk is a production-grade internal platform designed for financial operations teams. It helps analysts handle transaction exceptions faster, more consistently, and more safely by combining:
+LedgerDesk is an internal platform for financial operations teams. It helps analysts handle transaction exceptions faster, more consistently, and more safely by combining:
 
 - **Agentic AI workflows** that reason over context, retrieve evidence, call tools, and recommend actions
 - **Retrieval-augmented generation** over internal policy documents and SOPs
@@ -14,40 +19,55 @@ LedgerDesk is a production-grade internal platform designed for financial operat
 - **Safety gates** with confidence thresholds, grounding checks, and human-in-the-loop review
 - **Full audit trail** of every system action, tool call, prompt, and analyst decision
 
-This is not a chatbot. It's a serious operational copilot for financial services.
-
 ---
 
 ## Architecture
 
-```
-┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│   Next.js    │────▶│   FastAPI    │────▶│  PostgreSQL  │
-│   Frontend   │     │   Backend    │     │  + pgvector  │
-└──────────────┘     └──────┬───────┘     └──────────────┘
-                            │
-                     ┌──────┴───────┐
-                     │              │
-              ┌──────▼──────┐ ┌────▼─────┐
-              │   Agent     │ │  Redis   │
-              │ Orchestrator│ │ + Celery │
-              └──────┬──────┘ └──────────┘
-                     │
-         ┌───────────┼───────────┐
-         │           │           │
-    ┌────▼───┐  ┌────▼───┐  ┌───▼────┐
-    │ Triage │  │  RAG   │  │ Tools  │
-    │ Agent  │  │Retrieval│  │Service │
-    └────────┘  └────────┘  └────────┘
+```mermaid
+graph TB
+    subgraph Frontend
+        WEB[Next.js 15 + TypeScript]
+    end
+
+    subgraph Backend
+        API[FastAPI]
+        WORKER[Celery Worker]
+    end
+
+    subgraph Agent Pipeline
+        ORCH[Orchestrator]
+        TRIAGE[Triage Agent]
+        RAG[RAG Retrieval]
+        TOOLS[Tool Planner + Executor]
+        DECISION[Decision Agent]
+        SAFETY[Safety Gate]
+    end
+
+    subgraph Infrastructure
+        PG[(PostgreSQL + pgvector)]
+        REDIS[(Redis)]
+    end
+
+    WEB -->|HTTP| API
+    API --> ORCH
+    API --> PG
+    API --> REDIS
+    WORKER --> REDIS
+    ORCH --> TRIAGE
+    ORCH --> RAG
+    ORCH --> TOOLS
+    ORCH --> DECISION
+    ORCH --> SAFETY
+    RAG --> PG
 ```
 
 ### Agent Workflow State Machine
 
 ```
-created → triaged → context_retrieved → tools_selected → tools_executed
-    → recommendation_generated → safety_checked → awaiting_review
-    → approved → completed
-    → rejected / escalated / failed_safe
+created --> triaged --> context_retrieved --> tools_selected --> tools_executed
+    --> recommendation_generated --> safety_checked --> awaiting_review
+    --> approved --> completed
+    --> rejected / escalated / failed_safe
 ```
 
 ---
@@ -60,12 +80,12 @@ created → triaged → context_retrieved → tools_selected → tools_executed
 - Priority-based queue with search and filtering
 
 ### Agent Workflow
-- **Triage Agent**: Classifies issue type, extracts entities, assigns workflow path
-- **Retrieval Agent**: Fetches relevant policy snippets and prior cases
-- **Tool Planner**: Selects and prioritizes internal tool calls
-- **Tool Executor**: Runs tools with typed JSON input/output
-- **Decision Agent**: Generates grounded recommendations with citations
-- **Safety Gate**: Validates confidence, grounding quality, and policy support
+- **Triage Agent** -- classifies issue type, extracts entities, assigns workflow path
+- **Retrieval Agent** -- fetches relevant policy snippets and prior cases
+- **Tool Planner** -- selects and prioritizes internal tool calls
+- **Tool Executor** -- runs tools with typed JSON input/output
+- **Decision Agent** -- generates grounded recommendations with citations
+- **Safety Gate** -- validates confidence, grounding quality, and policy support
 
 ### Policy RAG
 - Ingests internal policy documents (markdown)
@@ -74,26 +94,24 @@ created → triaged → context_retrieved → tools_selected → tools_executed
 - Displayed alongside recommendations in the UI
 
 ### Mock Internal Tools
-- `get_transaction_timeline` - Transaction history for an account
-- `get_account_activity` - Account details and recent activity
-- `get_settlement_status` - Settlement status lookup
-- `get_refund_status` - Refund tracking by reference
-- `search_similar_cases` - Prior case similarity search
-- `get_merchant_reference` - Merchant information lookup
+- `get_transaction_timeline` -- transaction history for an account
+- `get_account_activity` -- account details and recent activity
+- `get_settlement_status` -- settlement status lookup
+- `get_refund_status` -- refund tracking by reference
+- `search_similar_cases` -- prior case similarity search
+- `get_merchant_reference` -- merchant information lookup
 
 ### Human Review
 - Approve, reject, escalate, or edit recommendations
 - Analyst notes and case annotations
-- Status history tracking
-- Reassignment support
+- Status history tracking and reassignment support
 
 ### Audit Trail
 - Every action logged with actor, timestamp, and trace ID
 - Tool invocation records with latency and status
-- Prompt version tracking
-- Analyst override history
+- Prompt version tracking and analyst override history
 
-### Monitoring & Metrics
+### Monitoring and Metrics
 - Case throughput and status distribution
 - Recommendation confidence distribution
 - Tool call latency tracking
@@ -107,7 +125,7 @@ created → triaged → context_retrieved → tools_selected → tools_executed
 | Layer | Technology |
 |-------|-----------|
 | Frontend | Next.js 15, TypeScript, Tailwind CSS |
-| Backend | FastAPI, Python 3.13, Pydantic |
+| Backend | FastAPI, Python 3.11, Pydantic |
 | Database | PostgreSQL 16 + pgvector |
 | Cache/Queue | Redis, Celery |
 | ORM | SQLAlchemy 2.0, Alembic |
@@ -118,25 +136,10 @@ created → triaged → context_retrieved → tools_selected → tools_executed
 
 ---
 
-## Design System
-
-LedgerDesk uses a **vintage-inspired financial aesthetic**:
-
-- Cream/ivory/parchment backgrounds
-- Deep navy, charcoal, muted green, and burgundy accents
-- Playfair Display serif for headings
-- Inter sans-serif for body text
-- IBM Plex Mono for data and codes
-- Ledger-like separators and clean table layouts
-- Stamp-style status badges
-- Generous spacing with minimal decoration
-
----
-
 ## Getting Started
 
 ### Prerequisites
-- Docker & Docker Compose
+- Docker and Docker Compose
 - Node.js 20+
 - Python 3.11+
 
@@ -144,8 +147,11 @@ LedgerDesk uses a **vintage-inspired financial aesthetic**:
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/LedgerDesk.git
+git clone https://github.com/KamalasankariS/LedgerDesk.git
 cd LedgerDesk
+
+# Copy environment config
+cp .env.example .env
 
 # Start infrastructure
 make docker-up
@@ -197,31 +203,24 @@ docker compose up -d
 ```
 LedgerDesk/
 ├── apps/
-│   ├── web/                    # Next.js frontend
-│   └── api/                    # FastAPI backend
-├── packages/                   # Shared modules
-│   ├── agent-core/             # State machine & orchestrator
-│   ├── retrieval/              # RAG pipeline
-│   ├── tool-services/          # Mock internal tools
-│   ├── recommendation-engine/  # Decision synthesis
-│   └── ...
+│   ├── api/                    # FastAPI backend
+│   └── web/                    # Next.js frontend
+├── packages/
+│   ├── agent-core/             # State machine, orchestrator, LLM client
+│   ├── retrieval/              # RAG pipeline (chunking, embedding, search)
+│   └── evaluation/             # Evaluation harness
 ├── sample_data/                # Seed data
 │   ├── cases/                  # Exception cases
 │   ├── policies/               # Policy documents
 │   ├── transactions/           # Transaction records
 │   └── ...
-├── docs/                       # Architecture & decisions
-├── tests/                      # Integration & E2E tests
+├── docs/                       # Architecture and decisions
+├── tests/                      # Integration and E2E tests
 ├── docker-compose.yml
 ├── Makefile
+├── pyproject.toml
 └── README.md
 ```
-
----
-
-## Database Schema
-
-Key tables: `users`, `cases`, `case_status_history`, `case_entities`, `case_notes`, `policy_documents`, `policy_chunks`, `agent_runs`, `tool_invocations`, `case_retrieval_results`, `recommendations`, `analyst_actions`, `audit_events`, `prompt_versions`, `evaluation_runs`
 
 ---
 
@@ -229,13 +228,13 @@ Key tables: `users`, `cases`, `case_status_history`, `case_entities`, `case_note
 
 LedgerDesk implements layered safety controls:
 
-1. **Confidence thresholds** — Low-confidence recommendations require human review
-2. **Grounding requirements** — No recommendation without policy citation support
-3. **Schema validation** — All agent inputs/outputs validated against Pydantic schemas
-4. **Bounded autonomy** — Agents operate within explicit state machine transitions
-5. **Human-in-the-loop** — Sensitive actions always require analyst approval
-6. **Audit logging** — Every system action is recorded and inspectable
-7. **Fail-safe behavior** — On failure, cases enter `failed_safe` state, never proceed unsupported
+1. **Confidence thresholds** -- low-confidence recommendations require human review
+2. **Grounding requirements** -- no recommendation without policy citation support
+3. **Schema validation** -- all agent inputs/outputs validated against Pydantic schemas
+4. **Bounded autonomy** -- agents operate within explicit state machine transitions
+5. **Human-in-the-loop** -- sensitive actions always require analyst approval
+6. **Audit logging** -- every system action is recorded and inspectable
+7. **Fail-safe behavior** -- on failure, cases enter `failed_safe` state, never proceed unsupported
 
 ---
 
@@ -263,6 +262,14 @@ LedgerDesk implements layered safety controls:
 
 ---
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, code style, and testing guidelines.
+
+## Security
+
+See [SECURITY.md](SECURITY.md) for vulnerability reporting and security controls.
+
 ## License
 
-MIT
+[MIT](LICENSE)
