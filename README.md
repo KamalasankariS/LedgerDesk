@@ -7,6 +7,9 @@
 
 **An agentic financial operations copilot for transaction exception handling, policy-grounded case resolution, and auditable workflow automation.**
 
+<!-- Replace with your own recording: brew install --cask kap, record ~15s of the workflow -->
+<!-- ![LedgerDesk Demo](docs/assets/demo.gif) -->
+
 ---
 
 ## Overview
