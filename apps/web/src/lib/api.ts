@@ -187,6 +187,17 @@ export const api = {
   },
   metrics: {
     dashboard: () => fetchAPI<DashboardMetrics>("/api/v1/metrics/dashboard"),
+    evaluations: () => fetchAPI<Record<string, unknown>>("/api/v1/metrics/evaluations"),
+    runEvaluation: () =>
+      fetchAPI<Record<string, unknown>>("/api/v1/metrics/evaluations/run", { method: "POST" }),
+  },
+  prompts: {
+    list: () => fetchAPI<Record<string, unknown>>("/api/v1/prompts"),
+    get: (id: string) => fetchAPI<Record<string, unknown>>(`/api/v1/prompts/${id}`),
+    active: (agentType: string) =>
+      fetchAPI<Record<string, unknown>>(`/api/v1/prompts/active/${agentType}`),
+    diff: (a: string, b: string) =>
+      fetchAPI<Record<string, unknown>>(`/api/v1/prompts/diff/${a}/${b}`),
   },
   health: {
     check: () => fetchAPI<HealthResponse>("/health"),
