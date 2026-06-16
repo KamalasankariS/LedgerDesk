@@ -6,6 +6,7 @@ import sys
 import uuid
 from pathlib import Path
 
+import structlog
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 
@@ -16,19 +17,15 @@ from app.models.user import User
 from app.models.case import Case, CaseStatus, CaseStatusHistory
 from app.models.policy import PolicyDocument, PolicyChunk
 
+logger = structlog.get_logger()
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+
 # Make the retrieval package importable from seed context
-sys.path.insert(
-    0,
-    str(
-        Path(__file__).resolve().parent.parent.parent.parent
-        / "packages"
-        / "retrieval"
-        / "src"
-    ),
-)
+sys.path.insert(0, str(PROJECT_ROOT / "packages" / "retrieval" / "src"))
 from indexer import index_all_policies  # noqa: E402
 
-DATA_DIR = Path(__file__).resolve().parent.parent.parent.parent / "sample_data"
+DATA_DIR = PROJECT_ROOT / "sample_data"
 
 
 async def seed():
@@ -115,7 +112,7 @@ async def seed():
                         changed_by="seed",
                     )
                 )
-            print(f"Seeded {len(cases_data)} cases")
+            logger.info("cases_seeded", count=len(cases_data))
 
         # Seed policies
         policies_dir = DATA_DIR / "policies"
@@ -154,19 +151,21 @@ async def seed():
                     )
                     session.add(chunk)
                 count += 1
-            print(f"Seeded {count} policy documents")
+            logger.info("policies_seeded", count=count)
 
         await session.commit()
 
         # Generate embeddings for all seeded policy chunks
-        print("Generating embeddings for policy chunks…")
+        logger.info("generating_embeddings")
         api_key = settings.openai_api_key or None
         stats = await index_all_policies(session, api_key=api_key)
         await session.commit()
-        print(
-            f"Indexed {stats['documents_indexed']} documents → {stats['total_chunks']} chunks"
+        logger.info(
+            "indexing_complete",
+            documents=stats["documents_indexed"],
+            chunks=stats["total_chunks"],
         )
-        print("Seeding complete!")
+        logger.info("seeding_complete")
 
     await engine.dispose()
 

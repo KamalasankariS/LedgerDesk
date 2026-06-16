@@ -24,22 +24,22 @@ class WorkflowStepResult(BaseModel):
     details: dict | None = None
 
 
-@router.post("/run")
-async def run_workflow(req: WorkflowRunRequest, db: AsyncSession = Depends(get_db)):
-    """Run the full agent workflow on a case."""
+def _ensure_package_paths():
+    """Add package source directories to sys.path if not already present."""
     import sys
     from pathlib import Path
 
-    sys.path.insert(
-        0,
-        str(
-            Path(__file__).resolve().parent.parent.parent.parent.parent
-            / "packages"
-            / "agent-core"
-            / "src"
-        ),
-    )
+    project_root = Path(__file__).resolve().parent.parent.parent.parent.parent
+    for pkg in ("agent-core", "retrieval"):
+        pkg_path = str(project_root / "packages" / pkg / "src")
+        if pkg_path not in sys.path:
+            sys.path.insert(0, pkg_path)
 
+
+@router.post("/run")
+async def run_workflow(req: WorkflowRunRequest, db: AsyncSession = Depends(get_db)):
+    """Run the full agent workflow on a case."""
+    _ensure_package_paths()
     from orchestrator import run_full_workflow
 
     try:

@@ -102,12 +102,11 @@ async def run_full_workflow(db: AsyncSession, case_id: uuid.UUID) -> dict:
             import sys
             from pathlib import Path
 
-            sys.path.insert(
-                0,
-                str(
-                    Path(__file__).resolve().parent.parent.parent / "retrieval" / "src"
-                ),
+            retrieval_path = str(
+                Path(__file__).resolve().parent.parent.parent / "retrieval" / "src"
             )
+            if retrieval_path not in sys.path:
+                sys.path.insert(0, retrieval_path)
             from search import search_policies, package_citations
 
             retrieval_results = await search_policies(

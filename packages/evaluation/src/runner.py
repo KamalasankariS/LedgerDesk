@@ -1,6 +1,7 @@
 """Evaluation test runner."""
 
 import asyncio
+import logging
 from pathlib import Path
 
 from .evaluator import (
@@ -10,6 +11,8 @@ from .evaluator import (
     compute_summary,
     format_eval_report,
 )
+
+logger = logging.getLogger(__name__)
 
 
 async def run_evaluation_batch(
@@ -24,7 +27,7 @@ async def run_evaluation_batch(
 
     eval_cases = load_eval_cases(data_dir)
     if not eval_cases:
-        print("No evaluation cases found")
+        logger.warning("No evaluation cases found")
         return EvalSummary()
 
     results: list[EvalResult] = []
@@ -88,12 +91,14 @@ async def run_evaluation_batch(
                 result.errors.append(str(e))
 
             results.append(result)
-            print(
-                f"  Evaluated: {eval_case.case_number} - {'OK' if not result.errors else 'ERRORS'}"
+            logger.info(
+                "Evaluated: %s - %s",
+                eval_case.case_number,
+                "OK" if not result.errors else "ERRORS",
             )
 
     summary = compute_summary(results)
-    print(format_eval_report(summary))
+    logger.info(format_eval_report(summary))
     return summary
 
 

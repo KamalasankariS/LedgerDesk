@@ -23,7 +23,15 @@ class Settings(BaseSettings):
     # App
     environment: str = "development"
     log_level: str = "INFO"
-    secret_key: str = "dev-secret-change-in-production"
+    secret_key: str = ""
+    cors_origins: list[str] = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
+
+    # Demo user IDs (for MVP without full auth flow)
+    demo_user_id: str = "00000000-0000-0000-0000-000000000001"
+    demo_analyst_id: str = "00000000-0000-0000-0000-000000000002"
 
     # Agent settings
     confidence_threshold: float = 0.7

@@ -24,12 +24,13 @@ from app.schemas.audit import AnalystActionCreate
 from app.schemas.recommendation import RecommendationResponse
 from app.services.case_service import CaseService
 
+from app.core.config import settings
+
 logger = structlog.get_logger()
 router = APIRouter()
 
-# Demo user ID for MVP
-DEMO_USER_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
-DEMO_ANALYST_ID = uuid.UUID("00000000-0000-0000-0000-000000000002")
+DEMO_USER_ID = uuid.UUID(settings.demo_user_id)
+DEMO_ANALYST_ID = uuid.UUID(settings.demo_analyst_id)
 
 
 def _generate_case_number() -> str:
