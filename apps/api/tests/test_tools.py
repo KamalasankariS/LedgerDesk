@@ -47,9 +47,7 @@ class TestSeedDataIntegrity:
         for case in cases:
             if case.get("transaction_id"):
                 tid = case["transaction_id"]
-                assert tid in txn_ids, (
-                    f"Case {case['case_number']} references unknown txn {tid}"
-                )
+                assert tid in txn_ids, f"Case {case['case_number']} references unknown txn {tid}"
 
     def test_cases_reference_valid_accounts(self):
         cases = self._load("cases", "seed_cases.json")
