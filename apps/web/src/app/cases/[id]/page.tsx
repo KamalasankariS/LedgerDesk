@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/Badge";
 import { ConfidenceIndicator } from "@/components/ui/ConfidenceIndicator";
 import { api } from "@/lib/api";
+import { showToast } from "@/components/ui/Toast";
 import type { Case, Recommendation } from "@/types";
 
 const WORKFLOW_STEPS = ["Triage", "Retrieval", "Tool Planning", "Tool Execution", "Decision", "Safety Gate", "Complete"];
@@ -123,7 +124,7 @@ export default function CaseDetailPage() {
     try {
       await api.cases.action(id, { action_type: actionType, recommendation_id: recs[0]?.id || null, reason });
       loadData();
-    } catch (e: any) { alert(e.message); }
+    } catch (e: any) { showToast(e.message); }
     setActionLoading(false);
   };
 
@@ -184,7 +185,7 @@ export default function CaseDetailPage() {
         setCompletedSteps(WORKFLOW_STEPS);
         loadData();
       } catch (e: any) {
-        alert(e.message);
+        showToast(e.message);
       }
     }
     setWorkflowRunning(false);

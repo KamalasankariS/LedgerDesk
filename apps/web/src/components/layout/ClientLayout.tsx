@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { MacSidebar } from "./Sidebar";
+import { ToastContainer } from "@/components/ui/Toast";
 
 const helpFAQ: [string, string][] = [
   ["workflow", "The AI workflow triages a case, retrieves relevant policy documents via RAG, runs investigation tools, and generates a structured recommendation for analyst review."],
@@ -228,7 +229,24 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
           <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#006400", display: "inline-block" }} />
           Connected
         </span>
+        <button
+          onClick={() => { setHelpOpen(true); }}
+          style={{
+            background: "#000080", color: "#fff", border: "1px solid #000",
+            boxShadow: "inset 1px 1px 0 #4444AA, inset -1px -1px 0 #000040",
+            width: 16, height: 13, fontSize: 10, fontWeight: "bold",
+            fontFamily: '"Chicago", sans-serif',
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            cursor: "default", padding: 0, lineHeight: 1,
+          }}
+          title="Open Help"
+        >
+          ?
+        </button>
       </div>
+
+      {/* ── Toast notifications ────────────────────────────────── */}
+      <ToastContainer />
 
       {/* ── Sign-out confirmation modal ───────────────────────────── */}
       {signedOut && (

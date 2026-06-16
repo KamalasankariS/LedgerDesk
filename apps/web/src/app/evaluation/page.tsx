@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import { showToast } from "@/components/ui/Toast";
 
 interface EvalRun {
   id: string;
@@ -38,7 +39,7 @@ export default function EvaluationPage() {
       await api.metrics.runEvaluation();
       loadRuns();
     } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : "Evaluation failed");
+      showToast(e instanceof Error ? e.message : "Evaluation failed");
     }
     setRunning(false);
   };

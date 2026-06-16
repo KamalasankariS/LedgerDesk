@@ -60,6 +60,15 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* Agent / Token summary */}
+      {metrics && metrics.total_agent_runs > 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+          <MetricCard label="Agent Runs"   value={metrics.total_agent_runs} subtitle="LLM calls" />
+          <MetricCard label="Total Tokens" value={metrics.total_tokens ? metrics.total_tokens.toLocaleString() : "0"} subtitle="prompt + completion" />
+          <MetricCard label="Est. Cost"    value={`$${(metrics.estimated_cost_usd ?? 0).toFixed(4)}`} subtitle="GPT-4o pricing" />
+        </div>
+      )}
+
       {/* Priority distribution */}
       {metrics?.cases_by_priority && Object.keys(metrics.cases_by_priority).length > 0 && (
         <div className="card" style={{ padding: 0 }}>

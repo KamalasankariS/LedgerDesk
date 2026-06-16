@@ -67,4 +67,7 @@ export interface DashboardMetrics {
   total_tool_invocations: number;
   average_tool_latency_ms: number | null;
   approval_rate: number | null;
+  total_agent_runs: number;
+  total_tokens: number;
+  estimated_cost_usd: number;
 }
