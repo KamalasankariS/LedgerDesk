@@ -64,6 +64,9 @@ demo: ## One-command demo setup (infra + seed + servers)
 	@echo "Starting servers..."
 	$(MAKE) -j2 dev-api dev-web
 
+eval: ## Run evaluation suite against seeded cases
+	@curl -s -X POST http://localhost:8000/api/v1/metrics/evaluations/run | python3 -m json.tool
+
 clean: ## Clean build artifacts
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name node_modules -exec rm -rf {} + 2>/dev/null || true

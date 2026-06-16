@@ -10,6 +10,8 @@ const navigation = [
   { name: "Policies",    href: "/policies",     icon: "⊟" },
   { name: "Audit Trail", href: "/audit",        icon: "☰" },
   { name: "Metrics",     href: "/metrics",      icon: "▦" },
+  { name: "Evaluation", href: "/evaluation",   icon: "◈" },
+  { name: "Prompts",    href: "/prompts",      icon: "¶" },
 ];
 
 export function MacSidebar({ onSignOut }: { onSignOut?: () => void }) {
