@@ -110,20 +110,21 @@ export default function CaseDetailPage() {
   const [reasonModal, setReasonModal] = useState<"escalate" | "reject" | null>(null);
   const [completedSteps, setCompletedSteps] = useState<string[]>([]);
 
-  const loadData = () => {
+  const loadData = useRef(() => {});
+  loadData.current = () => {
     Promise.all([api.cases.get(id), api.cases.recommendations(id), api.cases.history(id), api.cases.notes(id)])
       .then(([c, r, h, n]) => { setCaseData(c); setRecs(r); setHistory(h); setNotes(n); })
       .catch(() => {})
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { loadData(); }, [id]);
+  useEffect(() => { loadData.current(); }, [id]);
 
   const submitAction = async (actionType: string, reason?: string) => {
     setActionLoading(true);
     try {
       await api.cases.action(id, { action_type: actionType, recommendation_id: recs[0]?.id || null, reason });
-      loadData();
+      loadData.current();
     } catch (e: unknown) { showToast(e instanceof Error ? e.message : "Action failed"); }
     setActionLoading(false);
   };
@@ -176,14 +177,14 @@ export default function CaseDetailPage() {
           }
         }
       }
-      loadData();
+      loadData.current();
     } catch {
       // Fallback to non-streaming endpoint
       try {
         const r = await api.workflow.run(id);
-        setWorkflowResult(r);
+        setWorkflowResult({ status: r.status, steps: r.steps as { step: string }[] });
         setCompletedSteps(WORKFLOW_STEPS);
-        loadData();
+        loadData.current();
       } catch (e: unknown) {
         showToast(e instanceof Error ? e.message : "Workflow failed");
       }
@@ -194,7 +195,7 @@ export default function CaseDetailPage() {
   const handleAddNote = async () => {
     if (!newNote.trim()) return;
     await api.cases.addNote(id, { content: newNote, note_type: "general" });
-    setNewNote(""); loadData();
+    setNewNote(""); loadData.current();
   };
 
   if (loading) return <div className="card" style={{ height: 300 }} />;
@@ -303,25 +304,27 @@ export default function CaseDetailPage() {
                         {latestRec.recommended_action?.replace(/_/g, " ").toUpperCase()}
                       </p>
                     </div>
-                    {latestRec.structured_decision && (
+                    {latestRec.structured_decision && (() => {
+                      const sd = latestRec.structured_decision as Record<string, string | number | boolean>;
+                      return (
                       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                         <p style={labelStyle}>Decision Details</p>
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                          <span className={`badge ${latestRec.structured_decision.risk_level === "high" ? "badge-red" : latestRec.structured_decision.risk_level === "medium" ? "badge-yellow" : "badge-green"}`}>
-                            Risk: {latestRec.structured_decision.risk_level}
+                          <span className={`badge ${sd.risk_level === "high" ? "badge-red" : sd.risk_level === "medium" ? "badge-yellow" : "badge-green"}`}>
+                            Risk: {String(sd.risk_level)}
                           </span>
                           <span className="badge badge-blue">
-                            ~{latestRec.structured_decision.estimated_resolution_days}d resolution
+                            ~{String(sd.estimated_resolution_days)}d resolution
                           </span>
-                          {latestRec.structured_decision.requires_merchant_contact && (
+                          {sd.requires_merchant_contact && (
                             <span className="badge badge-yellow">Merchant contact required</span>
                           )}
-                          {latestRec.structured_decision.requires_cardholder_notification && (
+                          {sd.requires_cardholder_notification && (
                             <span className="badge badge-blue">Cardholder notification required</span>
                           )}
                         </div>
-                      </div>
-                    )}
+                      </div>);
+                    })()}
                   </div>
 
                   <hr />
@@ -343,15 +346,17 @@ export default function CaseDetailPage() {
                   <hr />
 
                   {/* Evidence Summary */}
-                  {latestRec.evidence_summary && (
+                  {latestRec.evidence_summary && (() => {
+                    const es = latestRec.evidence_summary as { supporting?: string[]; concerning?: string[]; missing?: string[] };
+                    return (
                     <div>
                       <p style={labelStyle}>Evidence Summary</p>
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 6 }}>
                         <div>
                           <p style={{ fontFamily: '"Geneva", sans-serif', fontSize: 10, fontWeight: "bold", color: "#006400", marginBottom: 4 }}>
-                            Supporting ({latestRec.evidence_summary.supporting?.length ?? 0})
+                            Supporting ({es.supporting?.length ?? 0})
                           </p>
-                          {(latestRec.evidence_summary.supporting || []).map((e: string, i: number) => (
+                          {(es.supporting || []).map((e, i) => (
                             <div key={i} style={{ fontFamily: '"Geneva", sans-serif', fontSize: 10, color: "#000", background: "#F0FFF0", border: "1px solid #006400", padding: "3px 6px", marginBottom: 3, lineHeight: 1.5 }}>
                               {e}
                             </div>
@@ -359,11 +364,11 @@ export default function CaseDetailPage() {
                         </div>
                         <div>
                           <p style={{ fontFamily: '"Geneva", sans-serif', fontSize: 10, fontWeight: "bold", color: "#8B6914", marginBottom: 4 }}>
-                            Concerning ({latestRec.evidence_summary.concerning?.length ?? 0})
+                            Concerning ({es.concerning?.length ?? 0})
                           </p>
-                          {(latestRec.evidence_summary.concerning || []).length === 0 ? (
+                          {(es.concerning || []).length === 0 ? (
                             <div style={{ fontFamily: '"Geneva", sans-serif', fontSize: 10, color: "#888", fontStyle: "italic" }}>None identified</div>
-                          ) : (latestRec.evidence_summary.concerning || []).map((e: string, i: number) => (
+                          ) : (es.concerning || []).map((e, i) => (
                             <div key={i} style={{ fontFamily: '"Geneva", sans-serif', fontSize: 10, color: "#000", background: "#FFFFF0", border: "1px solid #8B6914", padding: "3px 6px", marginBottom: 3, lineHeight: 1.5 }}>
                               {e}
                             </div>
@@ -371,19 +376,19 @@ export default function CaseDetailPage() {
                         </div>
                         <div>
                           <p style={{ fontFamily: '"Geneva", sans-serif', fontSize: 10, fontWeight: "bold", color: "#880000", marginBottom: 4 }}>
-                            Missing ({latestRec.evidence_summary.missing?.length ?? 0})
+                            Missing ({es.missing?.length ?? 0})
                           </p>
-                          {(latestRec.evidence_summary.missing || []).length === 0 ? (
+                          {(es.missing || []).length === 0 ? (
                             <div style={{ fontFamily: '"Geneva", sans-serif', fontSize: 10, color: "#888", fontStyle: "italic" }}>None identified</div>
-                          ) : (latestRec.evidence_summary.missing || []).map((e: string, i: number) => (
+                          ) : (es.missing || []).map((e, i) => (
                             <div key={i} style={{ fontFamily: '"Geneva", sans-serif', fontSize: 10, color: "#000", background: "#FFE8E8", border: "1px solid #880000", padding: "3px 6px", marginBottom: 3, lineHeight: 1.5 }}>
                               {e}
                             </div>
                           ))}
                         </div>
                       </div>
-                    </div>
-                  )}
+                    </div>);
+                  })()}
 
                   <hr />
 
@@ -392,30 +397,31 @@ export default function CaseDetailPage() {
                     <div>
                       <p style={labelStyle}>Policy Citations (Retrieved via RAG)</p>
                       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 6 }}>
-                        {latestRec.policy_citations.map((c: Record<string, string>, i: number) => {
+                        {latestRec.policy_citations.map((c, i: number) => {
+                          const cit = c as Record<string, string>;
                           if (typeof c === "string") {
                             return (
-                              <div key={i} className="mac-inset" style={{ fontSize: 10 }}>{c}</div>
+                              <div key={i} className="mac-inset" style={{ fontSize: 10 }}>{c as string}</div>
                             );
                           }
                           return (
                             <div key={i} style={{ background: "#E8E8FF", border: "1px solid #000080", padding: "8px 10px" }}>
                               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
                                 <p style={{ fontFamily: '"Geneva", sans-serif', fontSize: 10, fontWeight: "bold", color: "#000080" }}>
-                                  {c.document}
+                                  {cit.document}
                                 </p>
                                 <p style={{ fontFamily: '"Geneva", sans-serif', fontSize: 9, color: "#000080" }}>
-                                  {c.section}
+                                  {cit.section}
                                 </p>
                               </div>
-                              {c.quote && (
+                              {cit.quote && (
                                 <blockquote style={{ fontFamily: '"Monaco", monospace', fontSize: 10, color: "#333", borderLeft: "2px solid #000080", paddingLeft: 8, margin: "4px 0", lineHeight: 1.6, fontStyle: "italic" }}>
-                                  &quot;{c.quote}&quot;
+                                  &quot;{cit.quote}&quot;
                                 </blockquote>
                               )}
-                              {c.relevance && (
+                              {cit.relevance && (
                                 <p style={{ fontFamily: '"Geneva", sans-serif', fontSize: 10, color: "#555", marginTop: 6, textAlign: "center" }}>
-                                  - {c.relevance}
+                                  - {cit.relevance}
                                 </p>
                               )}
                             </div>

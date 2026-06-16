@@ -1,7 +1,7 @@
 """Metrics and dashboard endpoints."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import structlog
 from fastapi import APIRouter, Depends
@@ -9,9 +9,9 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.models.case import Case
+from app.models.agent import AgentRun, Recommendation, ToolInvocation
 from app.models.audit import AnalystAction, EvaluationRun
-from app.models.agent import AgentRun, ToolInvocation, Recommendation
+from app.models.case import Case
 
 logger = structlog.get_logger()
 router = APIRouter()
@@ -20,12 +20,9 @@ router = APIRouter()
 @router.get("/dashboard")
 async def dashboard_metrics(db: AsyncSession = Depends(get_db)):
     # Case counts by status
-    status_result = await db.execute(
-        select(Case.status, func.count(Case.id)).group_by(Case.status)
-    )
+    status_result = await db.execute(select(Case.status, func.count(Case.id)).group_by(Case.status))
     status_counts = {
-        row[0].value if hasattr(row[0], "value") else row[0]: row[1]
-        for row in status_result.all()
+        row[0].value if hasattr(row[0], "value") else row[0]: row[1] for row in status_result.all()
     }
 
     # Priority distribution
@@ -49,20 +46,14 @@ async def dashboard_metrics(db: AsyncSession = Depends(get_db)):
     action_counts = dict(action_result.all())
 
     # Average confidence
-    avg_confidence = (
-        await db.execute(select(func.avg(Recommendation.confidence_score)))
-    ).scalar()
+    avg_confidence = (await db.execute(select(func.avg(Recommendation.confidence_score)))).scalar()
 
     # Tool invocation stats
     tool_count = (await db.execute(select(func.count(ToolInvocation.id)))).scalar() or 0
-    avg_tool_latency = (
-        await db.execute(select(func.avg(ToolInvocation.duration_ms)))
-    ).scalar()
+    avg_tool_latency = (await db.execute(select(func.avg(ToolInvocation.duration_ms)))).scalar()
 
     # Agent run + token stats
-    agent_run_count = (
-        await db.execute(select(func.count(AgentRun.id)))
-    ).scalar() or 0
+    agent_run_count = (await db.execute(select(func.count(AgentRun.id)))).scalar() or 0
 
     token_result = await db.execute(
         select(
@@ -92,9 +83,7 @@ async def dashboard_metrics(db: AsyncSession = Depends(get_db)):
         "analyst_actions": action_counts,
         "average_confidence": round(avg_confidence, 3) if avg_confidence else None,
         "total_tool_invocations": tool_count,
-        "average_tool_latency_ms": round(avg_tool_latency, 1)
-        if avg_tool_latency
-        else None,
+        "average_tool_latency_ms": round(avg_tool_latency, 1) if avg_tool_latency else None,
         "approval_rate": _calc_rate(
             action_counts.get("approve", 0), action_counts.get("reject", 0)
         ),
@@ -143,9 +132,7 @@ async def list_evaluations(db: AsyncSession = Depends(get_db)):
                 "completed_cases": r.completed_cases,
                 "results_summary": r.results_summary,
                 "started_at": r.started_at.isoformat() if r.started_at else None,
-                "completed_at": r.completed_at.isoformat()
-                if r.completed_at
-                else None,
+                "completed_at": r.completed_at.isoformat() if r.completed_at else None,
             }
             for r in runs
         ]
@@ -171,8 +158,8 @@ async def run_evaluation(db: AsyncSession = Depends(get_db)):
             "incorrect_actions": total - int(total * 0.87),
             "escalation_rate": 0.15,
         },
-        started_at=datetime.now(timezone.utc),
-        completed_at=datetime.now(timezone.utc),
+        started_at=datetime.now(UTC),
+        completed_at=datetime.now(UTC),
     )
     db.add(run)
     await db.commit()

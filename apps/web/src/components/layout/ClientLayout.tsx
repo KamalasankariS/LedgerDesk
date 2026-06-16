@@ -133,9 +133,9 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     ],
     View: [
       { label: "Full Screen",   action: () => { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); } },
-      { label: "Normal (100%)", action: () => { (document.body.style as any).zoom = "1"; } },
-      { label: "Compact (90%)", action: () => { (document.body.style as any).zoom = "0.9"; } },
-      { label: "Mini (80%)",    action: () => { (document.body.style as any).zoom = "0.8"; } },
+      { label: "Normal (100%)", action: () => { document.body.style.setProperty("zoom", "1"); } },
+      { label: "Compact (90%)", action: () => { document.body.style.setProperty("zoom", "0.9"); } },
+      { label: "Mini (80%)",    action: () => { document.body.style.setProperty("zoom", "0.8"); } },
       { label: "---separator---", action: () => {}, separator: true },
       { label: sidebarOpen ? "Hide Sidebar" : "Show Sidebar", action: () => setSidebarOpen(o => !o) },
     ],

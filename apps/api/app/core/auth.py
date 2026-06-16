@@ -1,6 +1,6 @@
 """JWT authentication utilities and FastAPI dependencies."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
@@ -36,7 +36,7 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 
 def create_access_token(user: User) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(hours=TOKEN_EXPIRE_H)
+    expire = datetime.now(UTC) + timedelta(hours=TOKEN_EXPIRE_H)
     payload = {
         "sub": str(user.id),
         "email": user.email,

@@ -5,8 +5,8 @@ Revises: 001
 Create Date: 2024-12-15
 """
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision = "002"
@@ -16,9 +16,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "agent_runs", sa.Column("token_usage", postgresql.JSON(), nullable=True)
-    )
+    op.add_column("agent_runs", sa.Column("token_usage", postgresql.JSON(), nullable=True))
 
 
 def downgrade() -> None:

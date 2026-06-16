@@ -13,9 +13,7 @@ from .base import Base
 class AnalystAction(Base):
     __tablename__ = "analyst_actions"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     case_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("cases.id"), nullable=False
     )
@@ -42,9 +40,7 @@ class AnalystAction(Base):
 class AuditEvent(Base):
     __tablename__ = "audit_events"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     case_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("cases.id"), nullable=True
     )
@@ -66,9 +62,7 @@ class AuditEvent(Base):
 class PromptVersion(Base):
     __tablename__ = "prompt_versions"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     agent_type: Mapped[str] = mapped_column(String(100), nullable=False)
     version: Mapped[str] = mapped_column(String(20), nullable=False)
     template: Mapped[str] = mapped_column(Text, nullable=False)
@@ -82,12 +76,8 @@ class PromptVersion(Base):
 class EvaluationRun(Base):
     __tablename__ = "evaluation_runs"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
-    run_type: Mapped[str] = mapped_column(
-        String(50), nullable=False
-    )  # batch, single, regression
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    run_type: Mapped[str] = mapped_column(String(50), nullable=False)  # batch, single, regression
     status: Mapped[str] = mapped_column(String(50), default="running")
     total_cases: Mapped[int] = mapped_column(nullable=False)
     completed_cases: Mapped[int] = mapped_column(default=0)
@@ -95,6 +85,4 @@ class EvaluationRun(Base):
     started_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=text("now()"), nullable=False
     )
-    completed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

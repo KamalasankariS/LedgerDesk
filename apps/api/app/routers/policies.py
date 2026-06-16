@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.models.policy import PolicyDocument, PolicyChunk
+from app.models.policy import PolicyChunk, PolicyDocument
 
 sys.path.insert(
     0,
@@ -64,9 +64,7 @@ class PolicyChunkResponse(BaseModel):
 @router.get("")
 async def list_policies(db: AsyncSession = Depends(get_db)):
     result = await db.execute(
-        select(PolicyDocument)
-        .where(PolicyDocument.is_active)
-        .order_by(PolicyDocument.title)
+        select(PolicyDocument).where(PolicyDocument.is_active).order_by(PolicyDocument.title)
     )
     docs = result.scalars().all()
     return [
@@ -83,9 +81,7 @@ async def list_policies(db: AsyncSession = Depends(get_db)):
 
 
 @router.post("", status_code=201)
-async def create_policy(
-    policy_in: PolicyDocumentCreate, db: AsyncSession = Depends(get_db)
-):
+async def create_policy(policy_in: PolicyDocumentCreate, db: AsyncSession = Depends(get_db)):
     doc = PolicyDocument(
         title=policy_in.title,
         category=policy_in.category,
@@ -102,9 +98,7 @@ async def create_policy(
 
 @router.get("/{policy_id}")
 async def get_policy(policy_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(
-        select(PolicyDocument).where(PolicyDocument.id == policy_id)
-    )
+    result = await db.execute(select(PolicyDocument).where(PolicyDocument.id == policy_id))
     doc = result.scalar_one_or_none()
     if not doc:
         raise HTTPException(status_code=404, detail="Policy not found")
@@ -125,9 +119,7 @@ async def update_policy(
     policy_in: PolicyDocumentCreate,
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(
-        select(PolicyDocument).where(PolicyDocument.id == policy_id)
-    )
+    result = await db.execute(select(PolicyDocument).where(PolicyDocument.id == policy_id))
     doc = result.scalar_one_or_none()
     if not doc:
         raise HTTPException(status_code=404, detail="Policy not found")
@@ -145,9 +137,7 @@ async def update_policy(
 
 @router.delete("/{policy_id}", status_code=204)
 async def deactivate_policy(policy_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(
-        select(PolicyDocument).where(PolicyDocument.id == policy_id)
-    )
+    result = await db.execute(select(PolicyDocument).where(PolicyDocument.id == policy_id))
     doc = result.scalar_one_or_none()
     if not doc:
         raise HTTPException(status_code=404, detail="Policy not found")

@@ -1,6 +1,5 @@
 import type {
   Case,
-  CaseStatus,
   Recommendation,
   AuditEvent,
   DashboardMetrics,
@@ -50,8 +49,9 @@ interface NoteCreate {
 }
 
 interface AnalystAction {
-  action: string;
-  notes?: string;
+  action_type: string;
+  recommendation_id?: string | null;
+  reason?: string;
 }
 
 interface StatusHistory {
@@ -84,7 +84,8 @@ interface PolicyDocument {
   id: string;
   title: string;
   category: string;
-  content: string;
+  version: string;
+  content: string | null;
   created_at: string;
 }
 

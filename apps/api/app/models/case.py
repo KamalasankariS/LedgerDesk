@@ -9,10 +9,10 @@ from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Numeric, String, Tex
 from sqlalchemy.dialects.postgresql import JSON, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from .base import Base, AuditMixin
+from .base import AuditMixin, Base
 
 
-class CaseStatus(str, enum.Enum):
+class CaseStatus(enum.StrEnum):
     CREATED = "created"
     TRIAGED = "triaged"
     CONTEXT_RETRIEVED = "context_retrieved"
@@ -28,14 +28,14 @@ class CaseStatus(str, enum.Enum):
     FAILED_SAFE = "failed_safe"
 
 
-class CasePriority(str, enum.Enum):
+class CasePriority(enum.StrEnum):
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
     CRITICAL = "critical"
 
 
-class IssueType(str, enum.Enum):
+class IssueType(enum.StrEnum):
     DUPLICATE_CHARGE = "duplicate_charge"
     PENDING_AUTH = "pending_authorization"
     SETTLEMENT_DELAY = "settlement_delay"
@@ -51,9 +51,7 @@ class IssueType(str, enum.Enum):
 class Case(AuditMixin, Base):
     __tablename__ = "cases"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     case_number: Mapped[str] = mapped_column(String(20), unique=True, nullable=False)
     title: Mapped[str] = mapped_column(String(500), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
@@ -112,9 +110,7 @@ class Case(AuditMixin, Base):
 class CaseStatusHistory(Base):
     __tablename__ = "case_status_history"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     case_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("cases.id"), nullable=False
     )
@@ -132,9 +128,7 @@ class CaseStatusHistory(Base):
 class CaseEntity(Base):
     __tablename__ = "case_entities"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     case_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("cases.id"), nullable=False
     )
@@ -148,9 +142,7 @@ class CaseEntity(Base):
 class CaseNote(AuditMixin, Base):
     __tablename__ = "case_notes"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     case_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("cases.id"), nullable=False
     )

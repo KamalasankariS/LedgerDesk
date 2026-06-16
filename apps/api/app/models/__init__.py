@@ -1,19 +1,19 @@
 """Database models."""
 
+from .agent import AgentRun, CaseRetrievalResult, Recommendation, ToolInvocation
+from .audit import AnalystAction, AuditEvent, EvaluationRun, PromptVersion
 from .base import Base
-from .user import User
 from .case import (
     Case,
-    CaseStatus,
-    CasePriority,
-    IssueType,
-    CaseStatusHistory,
     CaseEntity,
     CaseNote,
+    CasePriority,
+    CaseStatus,
+    CaseStatusHistory,
+    IssueType,
 )
-from .policy import PolicyDocument, PolicyChunk
-from .agent import AgentRun, ToolInvocation, CaseRetrievalResult, Recommendation
-from .audit import AnalystAction, AuditEvent, PromptVersion, EvaluationRun
+from .policy import PolicyChunk, PolicyDocument
+from .user import User
 
 __all__ = [
     "Base",

@@ -9,6 +9,7 @@ interface PolicyItem {
   category: string;
   version: string;
   content: string | null;
+  created_at: string;
 }
 
 export default function PoliciesPage() {

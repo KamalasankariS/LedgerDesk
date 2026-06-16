@@ -1,6 +1,9 @@
 """Retrieval and indexing endpoints."""
 
+# Add packages to path
+import sys
 import uuid
+from pathlib import Path
 
 import structlog
 from fastapi import APIRouter, Depends
@@ -9,10 +12,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import get_db
-
-# Add packages to path
-import sys
-from pathlib import Path
 
 sys.path.insert(
     0,
@@ -24,8 +23,8 @@ sys.path.insert(
     ),
 )
 
-from search import search_policies, package_citations
 from indexer import index_all_policies, index_policy_document
+from search import package_citations, search_policies
 
 logger = structlog.get_logger()
 router = APIRouter()

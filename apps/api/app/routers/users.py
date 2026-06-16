@@ -88,9 +88,7 @@ async def create_user(body: UserCreate, db: AsyncSession = Depends(get_db)):
 
 
 @router.patch("/{user_id}")
-async def update_user(
-    user_id: uuid.UUID, body: UserUpdate, db: AsyncSession = Depends(get_db)
-):
+async def update_user(user_id: uuid.UUID, body: UserUpdate, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:

@@ -5,8 +5,8 @@ import uuid
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.case import Case, CaseStatus, CaseStatusHistory
 from app.models.audit import AnalystAction, AuditEvent
+from app.models.case import Case, CaseStatus, CaseStatusHistory
 from app.schemas.audit import AnalystActionCreate
 
 logger = structlog.get_logger()
@@ -87,10 +87,7 @@ class CaseService:
         valid_transitions = STATUS_TRANSITIONS.get(action_type, {})
         new_status = valid_transitions.get(case.status)
 
-        if (
-            action_type in ("approve", "reject", "escalate", "reopen")
-            and not new_status
-        ):
+        if action_type in ("approve", "reject", "escalate", "reopen") and not new_status:
             return {
                 "success": False,
                 "error": f"Cannot {action_type} a case in status '{case.status.value}'",
@@ -109,9 +106,7 @@ class CaseService:
 
         # Transition status if applicable
         if new_status:
-            await self.transition_status(
-                case, new_status, str(analyst_id), action_in.reason
-            )
+            await self.transition_status(case, new_status, str(analyst_id), action_in.reason)
 
         # If approved, also mark as completed
         if action_type == "approve":

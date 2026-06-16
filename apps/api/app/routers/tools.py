@@ -71,9 +71,7 @@ async def execute_tool(req: ToolRequest, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=400, detail=f"Unknown tool: {req.tool_name}")
 
     try:
-        result = handler(
-            req.params, transactions, accounts, settlements, refunds, merchants
-        )
+        result = handler(req.params, transactions, accounts, settlements, refunds, merchants)
         status = "success"
         error = None
     except Exception as e:
@@ -98,9 +96,7 @@ async def execute_tool(req: ToolRequest, db: AsyncSession = Depends(get_db)):
     db.add(invocation)
     await db.flush()
 
-    logger.info(
-        "tool_executed", tool=req.tool_name, status=status, duration_ms=duration_ms
-    )
+    logger.info("tool_executed", tool=req.tool_name, status=status, duration_ms=duration_ms)
 
     return {
         "tool_name": req.tool_name,
@@ -175,9 +171,7 @@ def _get_refund_status(params, *_, refunds, **__):
         raise ValueError("reference_id or transaction_id is required")
 
     matches = [
-        r
-        for r in refunds
-        if r.get("original_transaction_id") == ref_id or r.get("arn") == ref_id
+        r for r in refunds if r.get("original_transaction_id") == ref_id or r.get("arn") == ref_id
     ]
     return {
         "reference_id": ref_id,
@@ -208,8 +202,7 @@ def _get_merchant_reference(params, *_, merchants=None):
             (
                 m
                 for m in merchants
-                if m.get("merchant_id") == merchant_ref
-                or merchant_ref in m.get("name", "")
+                if m.get("merchant_id") == merchant_ref or merchant_ref in m.get("name", "")
             ),
             None,
         )

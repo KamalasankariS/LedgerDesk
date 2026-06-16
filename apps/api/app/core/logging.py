@@ -1,7 +1,9 @@
 """Structured logging configuration."""
 
 import logging
+
 import structlog
+
 from app.core.config import settings
 
 

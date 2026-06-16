@@ -18,9 +18,7 @@ router = APIRouter()
 @router.get("/")
 async def list_prompt_versions(db: AsyncSession = Depends(get_db)):
     result = await db.execute(
-        select(PromptVersion).order_by(
-            PromptVersion.agent_type, PromptVersion.version.desc()
-        )
+        select(PromptVersion).order_by(PromptVersion.agent_type, PromptVersion.version.desc())
     )
     versions = result.scalars().all()
 
@@ -45,12 +43,8 @@ async def list_prompt_versions(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/{version_id}")
-async def get_prompt_version(
-    version_id: uuid.UUID, db: AsyncSession = Depends(get_db)
-):
-    result = await db.execute(
-        select(PromptVersion).where(PromptVersion.id == version_id)
-    )
+async def get_prompt_version(version_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(PromptVersion).where(PromptVersion.id == version_id))
     version = result.scalar_one_or_none()
     if not version:
         raise HTTPException(status_code=404, detail="Prompt version not found")
@@ -69,17 +63,13 @@ async def get_prompt_version(
 async def get_active_prompt(agent_type: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(PromptVersion)
-        .where(
-            PromptVersion.agent_type == agent_type, PromptVersion.is_active == True
-        )
+        .where(PromptVersion.agent_type == agent_type, PromptVersion.is_active)
         .order_by(PromptVersion.version.desc())
         .limit(1)
     )
     version = result.scalar_one_or_none()
     if not version:
-        raise HTTPException(
-            status_code=404, detail=f"No active prompt for {agent_type}"
-        )
+        raise HTTPException(status_code=404, detail=f"No active prompt for {agent_type}")
     return {
         "id": str(version.id),
         "agent_type": version.agent_type,
@@ -95,18 +85,12 @@ async def diff_prompt_versions(
     version_b_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
 ):
-    result_a = await db.execute(
-        select(PromptVersion).where(PromptVersion.id == version_a_id)
-    )
-    result_b = await db.execute(
-        select(PromptVersion).where(PromptVersion.id == version_b_id)
-    )
+    result_a = await db.execute(select(PromptVersion).where(PromptVersion.id == version_a_id))
+    result_b = await db.execute(select(PromptVersion).where(PromptVersion.id == version_b_id))
     va = result_a.scalar_one_or_none()
     vb = result_b.scalar_one_or_none()
     if not va or not vb:
-        raise HTTPException(
-            status_code=404, detail="One or both versions not found"
-        )
+        raise HTTPException(status_code=404, detail="One or both versions not found")
 
     diff = list(
         difflib.unified_diff(

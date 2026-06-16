@@ -16,7 +16,7 @@ export interface Case {
   confidence_score: number | null;
   requires_human_review: boolean;
   trace_id: string | null;
-  extracted_entities: Record<string, any> | null;
+  extracted_entities: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 }
@@ -35,12 +35,13 @@ export interface Recommendation {
   recommended_action: string;
   rationale: string;
   confidence_score: number;
-  policy_citations: any[] | null;
-  evidence_summary: Record<string, any> | null;
-  structured_decision: Record<string, any> | null;
+  policy_citations: Record<string, unknown>[] | null;
+  evidence_summary: Record<string, unknown> | null;
+  structured_decision: Record<string, unknown> | null;
   required_approval_level: string;
+  analyst_summary: string | null;
   safety_gate_passed: boolean | null;
-  safety_gate_details: Record<string, any> | null;
+  safety_gate_details: Record<string, unknown> | null;
   created_at: string;
 }
 
@@ -53,7 +54,7 @@ export interface AuditEvent {
   action: string;
   resource_type: string;
   resource_id: string | null;
-  details: Record<string, any> | null;
+  details: Record<string, unknown> | null;
   trace_id: string | null;
   created_at: string;
 }

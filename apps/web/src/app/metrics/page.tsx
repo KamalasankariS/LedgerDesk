@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { MetricCard } from "@/components/ui/MetricCard";
 import { api } from "@/lib/api";
+import type { DashboardMetrics } from "@/types";
 
 const tracked = [
   "Workflow step timing", "Tool call latency", "Retrieval quality",
@@ -11,7 +12,7 @@ const tracked = [
 ];
 
 export default function MetricsPage() {
-  const [metrics, setMetrics] = useState<any>(null);
+  const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

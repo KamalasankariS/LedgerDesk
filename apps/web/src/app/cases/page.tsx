@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -34,16 +34,17 @@ function NewCaseModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
     if (!form.title.trim() || !form.description.trim()) return;
     setSubmitting(true); setError(null);
     try {
-      const payload: Record<string, string | number> = {
-        title: form.title.trim(), description: form.description.trim(),
-        priority: form.priority, currency: form.currency || "USD",
-      };
-      if (form.issue_type)     payload.issue_type     = form.issue_type;
-      if (form.transaction_id) payload.transaction_id = form.transaction_id.trim();
-      if (form.account_id)     payload.account_id     = form.account_id.trim();
-      if (form.merchant_name)  payload.merchant_name  = form.merchant_name.trim();
-      if (form.amount)         payload.amount         = parseFloat(form.amount);
-      const created = await api.cases.create(payload);
+      const created = await api.cases.create({
+        title: form.title.trim(),
+        description: form.description.trim(),
+        priority: form.priority,
+        currency: form.currency || "USD",
+        ...(form.issue_type     && { issue_type: form.issue_type }),
+        ...(form.transaction_id && { transaction_id: form.transaction_id.trim() }),
+        ...(form.account_id     && { account_id: form.account_id.trim() }),
+        ...(form.merchant_name  && { merchant_name: form.merchant_name.trim() }),
+        ...(form.amount         && { amount: parseFloat(form.amount) }),
+      });
       onCreated(created.id);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to create case.");
@@ -168,7 +169,7 @@ export default function CaseQueuePage() {
   const [priorityFilter, setPriorityFilter] = useState("");
   const [showNewCase, setShowNewCase]   = useState(false);
 
-  const loadCases = () => {
+  useEffect(() => {
     const params: Record<string, string> = {};
     if (search)         params.search   = search;
     if (statusFilter)   params.status   = statusFilter;
@@ -177,9 +178,7 @@ export default function CaseQueuePage() {
       .then((data) => { setCases(data.cases || []); setTotal(data.total || 0); })
       .catch(() => setCases([]))
       .finally(() => setLoading(false));
-  };
-
-  useEffect(() => { loadCases(); }, [search, statusFilter, priorityFilter]);
+  }, [search, statusFilter, priorityFilter]);
 
   const handleCreated = (id: string) => { setShowNewCase(false); router.push(`/cases/${id}`); };
 

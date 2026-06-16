@@ -9,17 +9,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.logging import setup_logging
 from app.routers import (
-    cases,
-    policies,
-    prompts,
-    tools,
-    workflow,
     audit,
+    auth,
+    cases,
     health,
     metrics,
+    policies,
+    prompts,
     retrieval,
-    auth,
+    tools,
     users,
+    workflow,
 )
 
 logger = structlog.get_logger()

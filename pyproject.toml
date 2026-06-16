@@ -17,5 +17,9 @@ select = ["E", "F", "I", "N", "W", "UP"]
 asyncio_mode = "auto"
 testpaths = ["apps/api/tests", "tests"]
 
+[tool.ruff.lint.per-file-ignores]
+"apps/api/app/seed.py" = ["E501"]
+"apps/api/migrations/**" = ["E501"]
+
 [tool.ruff.format]
 quote-style = "double"

@@ -15,7 +15,7 @@ export function ConfidenceIndicator({ score, showLabel = true, size = "md" }: Co
         <div className="mac-progress-fill" style={{ width: `${pct}%` }} />
       </div>
       {showLabel && (
-        <span style={{ fontFamily: '"Monaco", monospace', fontSize: 11, fontWeight: "bold", color, tabularNums: true } as any}>
+        <span style={{ fontFamily: '"Monaco", monospace', fontSize: 11, fontWeight: "bold", color, fontVariantNumeric: "tabular-nums" }}>
           {pct}%
         </span>
       )}

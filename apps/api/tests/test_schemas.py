@@ -5,9 +5,8 @@ from datetime import datetime
 from decimal import Decimal
 
 import pytest
-
-from app.schemas.case import CaseCreate, CaseNoteCreate
 from app.schemas.audit import AnalystActionCreate
+from app.schemas.case import CaseCreate, CaseNoteCreate
 from app.schemas.recommendation import RecommendationResponse
 
 

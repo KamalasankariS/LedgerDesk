@@ -3,7 +3,6 @@
 import json
 from pathlib import Path
 
-
 DATA_DIR = Path(__file__).resolve().parent.parent.parent.parent / "sample_data"
 
 
@@ -47,8 +46,9 @@ class TestSeedDataIntegrity:
         txn_ids = {t["transaction_id"] for t in txns}
         for case in cases:
             if case.get("transaction_id"):
-                assert case["transaction_id"] in txn_ids, (
-                    f"Case {case['case_number']} references unknown transaction {case['transaction_id']}"
+                tid = case["transaction_id"]
+                assert tid in txn_ids, (
+                    f"Case {case['case_number']} references unknown txn {tid}"
                 )
 
     def test_cases_reference_valid_accounts(self):
@@ -80,9 +80,7 @@ class TestToolOutputContracts:
     """Test that tool output contracts are valid."""
 
     def test_transaction_timeline_output_shape(self):
-        txns = json.loads(
-            (DATA_DIR / "transactions" / "seed_transactions.json").read_text()
-        )
+        txns = json.loads((DATA_DIR / "transactions" / "seed_transactions.json").read_text())
         # Simulate get_transaction_timeline
         result = {
             "transaction_id": "TXN-9382741",
@@ -95,9 +93,7 @@ class TestToolOutputContracts:
         assert len(result["timeline"]) == 2
 
     def test_account_activity_output_shape(self):
-        accounts = json.loads(
-            (DATA_DIR / "accounts" / "seed_accounts.json").read_text()
-        )
+        accounts = json.loads((DATA_DIR / "accounts" / "seed_accounts.json").read_text())
         acct = next(a for a in accounts if a["account_id"] == "ACCT-4421889")
         result = {
             "account_id": "ACCT-4421889",

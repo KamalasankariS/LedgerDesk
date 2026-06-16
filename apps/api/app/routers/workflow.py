@@ -3,7 +3,7 @@
 import asyncio
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException
@@ -110,9 +110,7 @@ async def run_workflow_stream(req: WorkflowRunRequest):
 
                 # Poll current case status
                 async with async_session() as poll_db:
-                    result = await poll_db.execute(
-                        select(Case.status).where(Case.id == case_id)
-                    )
+                    result = await poll_db.execute(select(Case.status).where(Case.id == case_id))
                     row = result.scalar_one_or_none()
                     if row is None:
                         break
@@ -121,14 +119,12 @@ async def run_workflow_stream(req: WorkflowRunRequest):
                 if current != last_status:
                     # Emit events for any steps we haven't seen
                     for status_key, step_name in _STATUS_STEPS.items():
-                        if status_key not in seen_steps and _status_reached(
-                            current, status_key
-                        ):
+                        if status_key not in seen_steps and _status_reached(current, status_key):
                             seen_steps.add(status_key)
                             event = {
                                 "step": step_name,
                                 "status": "completed",
-                                "timestamp": datetime.now(timezone.utc).isoformat(),
+                                "timestamp": datetime.now(UTC).isoformat(),
                             }
                             yield f"data: {json.dumps(event)}\n\n"
 
@@ -145,7 +141,7 @@ async def run_workflow_stream(req: WorkflowRunRequest):
             final = {
                 "step": "done",
                 "status": "failed" if workflow_error else "completed",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "error": workflow_error,
             }
             yield f"data: {json.dumps(final)}\n\n"
@@ -154,7 +150,7 @@ async def run_workflow_stream(req: WorkflowRunRequest):
             error_event = {
                 "step": "done",
                 "status": "failed",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "error": str(e),
             }
             yield f"data: {json.dumps(error_event)}\n\n"
