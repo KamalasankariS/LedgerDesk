@@ -3,9 +3,17 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 
+interface PolicyItem {
+  id: string;
+  title: string;
+  category: string;
+  version: string;
+  content: string | null;
+}
+
 export default function PoliciesPage() {
-  const [policies, setPolicies]         = useState<any[]>([]);
-  const [selected, setSelected]         = useState<any>(null);
+  const [policies, setPolicies]         = useState<PolicyItem[]>([]);
+  const [selected, setSelected]         = useState<PolicyItem | null>(null);
   const [loadingList, setLoadingList]   = useState(true);
   const [loadingContent, setLoadingContent] = useState(false);
   const [contentError, setContentError] = useState<string | null>(null);
@@ -14,15 +22,15 @@ export default function PoliciesPage() {
     api.policies.list().then(setPolicies).catch(() => setPolicies([])).finally(() => setLoadingList(false));
   }, []);
 
-  const handleSelect = async (policy: any) => {
+  const handleSelect = async (policy: PolicyItem) => {
     setSelected({ ...policy, content: null });
     setContentError(null);
     setLoadingContent(true);
     try {
       const doc = await api.policies.get(policy.id);
       setSelected(doc);
-    } catch (err: any) {
-      setContentError(err?.message || "Failed to load policy content.");
+    } catch (err: unknown) {
+      setContentError(err instanceof Error ? err.message : "Failed to load policy content.");
     } finally {
       setLoadingContent(false);
     }
@@ -52,7 +60,7 @@ export default function PoliciesPage() {
               No policies found. Seed the database.
             </p>
           ) : (
-            policies.map((p: any) => {
+            policies.map((p) => {
               const isActive = selected?.id === p.id;
               return (
                 <button

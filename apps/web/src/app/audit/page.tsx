@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { EmptyState } from "@/components/ui/EmptyState";
+import type { AuditEvent } from "@/types";
 
 export default function AuditPage() {
-  const [events, setEvents]   = useState<any[]>([]);
+  const [events, setEvents]   = useState<AuditEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter]   = useState<"all" | "human" | "system">("all");
 
@@ -55,7 +56,7 @@ export default function AuditPage() {
               </tr>
             </thead>
             <tbody>
-              {events.map((e: any) => (
+              {events.map((e) => (
                 <tr key={e.id}>
                   <td><span style={{ fontFamily: '"Monaco", monospace', fontSize: 10, color: "#555", whiteSpace: "nowrap" }}>{new Date(e.created_at).toLocaleString()}</span></td>
                   <td>

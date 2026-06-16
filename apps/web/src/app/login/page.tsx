@@ -28,8 +28,8 @@ export default function LoginPage() {
       localStorage.setItem("ld_token", data.access_token);
       localStorage.setItem("ld_user", JSON.stringify({ full_name: data.full_name, role: data.role, email: data.email }));
       router.push("/");
-    } catch (err: any) {
-      setError(err.message || "Login failed");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Login failed");
     } finally {
       setLoading(false);
     }

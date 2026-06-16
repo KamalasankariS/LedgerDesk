@@ -100,20 +100,20 @@ export default function CaseDetailPage() {
   const router = useRouter();
   const [caseData, setCaseData]     = useState<Case | null>(null);
   const [recs, setRecs]             = useState<Recommendation[]>([]);
-  const [history, setHistory]       = useState<any[]>([]);
-  const [notes, setNotes]           = useState<any[]>([]);
+  const [history, setHistory]       = useState<{ id: string; from_status: string | null; to_status: string; created_at: string }[]>([]);
+  const [notes, setNotes]           = useState<{ id: string; content: string; created_at: string }[]>([]);
   const [loading, setLoading]       = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [newNote, setNewNote]       = useState("");
   const [workflowRunning, setWorkflowRunning] = useState(false);
-  const [workflowResult, setWorkflowResult]   = useState<any>(null);
+  const [workflowResult, setWorkflowResult]   = useState<{ status?: string; steps?: { step: string }[] } | null>(null);
   const [reasonModal, setReasonModal] = useState<"escalate" | "reject" | null>(null);
   const [completedSteps, setCompletedSteps] = useState<string[]>([]);
 
   const loadData = () => {
     Promise.all([api.cases.get(id), api.cases.recommendations(id), api.cases.history(id), api.cases.notes(id)])
       .then(([c, r, h, n]) => { setCaseData(c); setRecs(r); setHistory(h); setNotes(n); })
-      .catch(console.error)
+      .catch(() => {})
       .finally(() => setLoading(false));
   };
 
@@ -124,12 +124,12 @@ export default function CaseDetailPage() {
     try {
       await api.cases.action(id, { action_type: actionType, recommendation_id: recs[0]?.id || null, reason });
       loadData();
-    } catch (e: any) { showToast(e.message); }
+    } catch (e: unknown) { showToast(e instanceof Error ? e.message : "Action failed"); }
     setActionLoading(false);
   };
 
   const handleAction = (t: string) => {
-    if (t === "escalate" || t === "reject") setReasonModal(t as any);
+    if (t === "escalate" || t === "reject") setReasonModal(t as "escalate" | "reject");
     else submitAction(t);
   };
 
@@ -184,8 +184,8 @@ export default function CaseDetailPage() {
         setWorkflowResult(r);
         setCompletedSteps(WORKFLOW_STEPS);
         loadData();
-      } catch (e: any) {
-        showToast(e.message);
+      } catch (e: unknown) {
+        showToast(e instanceof Error ? e.message : "Workflow failed");
       }
     }
     setWorkflowRunning(false);
@@ -392,7 +392,7 @@ export default function CaseDetailPage() {
                     <div>
                       <p style={labelStyle}>Policy Citations (Retrieved via RAG)</p>
                       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 6 }}>
-                        {latestRec.policy_citations.map((c: any, i: number) => {
+                        {latestRec.policy_citations.map((c: Record<string, string>, i: number) => {
                           if (typeof c === "string") {
                             return (
                               <div key={i} className="mac-inset" style={{ fontSize: 10 }}>{c}</div>
@@ -459,7 +459,7 @@ export default function CaseDetailPage() {
                 </div>
                 {notes.length > 0 ? (
                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    {notes.map((n: any) => (
+                    {notes.map((n) => (
                       <div key={n.id} className="mac-inset" style={{ fontSize: 11 }}>
                         <p style={{ fontFamily: '"Geneva", sans-serif', color: "#000" }}>{n.content}</p>
                         <p style={{ fontFamily: '"Monaco", monospace', fontSize: 10, color: "#555", marginTop: 2 }}>
@@ -503,7 +503,7 @@ export default function CaseDetailPage() {
               <div className="card-header"><h3>Status History</h3></div>
               <div style={{ padding: "6px 10px" }}>
                 {history.length > 0 ? (
-                  history.map((h: any, i: number) => (
+                  history.map((h, i) => (
                     <div key={h.id || i} style={{ display: "flex", gap: 6, alignItems: "flex-start", paddingBottom: 6, marginBottom: 6, borderBottom: i < history.length - 1 ? "1px solid #D4D0C8" : "none" }}>
                       <span style={{ color: "#000080", fontSize: 10, marginTop: 1 }}>&#9654;</span>
                       <div>

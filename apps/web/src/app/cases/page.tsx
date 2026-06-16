@@ -34,7 +34,7 @@ function NewCaseModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
     if (!form.title.trim() || !form.description.trim()) return;
     setSubmitting(true); setError(null);
     try {
-      const payload: Record<string, any> = {
+      const payload: Record<string, string | number> = {
         title: form.title.trim(), description: form.description.trim(),
         priority: form.priority, currency: form.currency || "USD",
       };
@@ -45,8 +45,8 @@ function NewCaseModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
       if (form.amount)         payload.amount         = parseFloat(form.amount);
       const created = await api.cases.create(payload);
       onCreated(created.id);
-    } catch (err: any) {
-      setError(err?.message || "Failed to create case.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to create case.");
       setSubmitting(false);
     }
   };
