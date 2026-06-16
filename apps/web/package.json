@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "echo \"No tests yet\" && exit 0"
+    "test": "echo \"Tests pending - see CONTRIBUTING.md\" && exit 0"
   },
   "dependencies": {
     "next": "15.1.3",
