@@ -28,6 +28,7 @@ class AgentRun(TimestampMixin, Base):
     output_data: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    token_usage: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     prompt_version: Mapped[str | None] = mapped_column(String(50), nullable=True)
     trace_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
 

@@ -1,8 +1,9 @@
 """Individual agent implementations."""
 
+import json
 import time
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,6 +28,7 @@ class AgentResult:
     output: dict
     duration_ms: int
     run_id: str
+    token_usage: dict = field(default_factory=dict)
 
 
 async def _run_agent(
@@ -58,9 +60,19 @@ async def _run_agent(
         output = await llm.complete_json(prompt)
         duration_ms = int((time.time() - start) * 1000)
 
+        # Track token usage (estimates based on prompt/output size)
+        prompt_tokens = len(prompt.split()) * 2
+        completion_tokens = len(json.dumps(output).split()) * 2
+        token_usage = {
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+            "total_tokens": prompt_tokens + completion_tokens,
+        }
+
         run.status = "completed"
         run.output_data = output
         run.duration_ms = duration_ms
+        run.token_usage = token_usage
         await db.flush()
 
         logger.info(
@@ -68,6 +80,7 @@ async def _run_agent(
             agent_type=agent_type,
             case_id=str(case_id),
             duration_ms=duration_ms,
+            tokens=token_usage["total_tokens"],
         )
 
         return AgentResult(
@@ -76,6 +89,7 @@ async def _run_agent(
             output=output,
             duration_ms=duration_ms,
             run_id=str(run_id),
+            token_usage=token_usage,
         )
     except Exception as e:
         duration_ms = int((time.time() - start) * 1000)

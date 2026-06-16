@@ -26,8 +26,17 @@ export default function MetricsPage() {
         <MetricCard label="Total Cases"      value={metrics?.total_cases ?? 0} />
         <MetricCard label="Tool Invocations" value={metrics?.total_tool_invocations ?? 0}
           subtitle={metrics?.average_tool_latency_ms ? `${metrics.average_tool_latency_ms}ms avg` : undefined} />
-        <MetricCard label="Avg Confidence"   value={metrics?.average_confidence ? `${Math.round(metrics.average_confidence * 100)}%` : "—"} />
-        <MetricCard label="Approval Rate"    value={metrics?.approval_rate ? `${Math.round(metrics.approval_rate * 100)}%` : "—"} />
+        <MetricCard label="Avg Confidence"   value={metrics?.average_confidence ? `${Math.round(metrics.average_confidence * 100)}%` : "\u2014"} />
+        <MetricCard label="Approval Rate"    value={metrics?.approval_rate ? `${Math.round(metrics.approval_rate * 100)}%` : "\u2014"} />
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+        <MetricCard label="Agent Runs"   value={metrics?.total_agent_runs ?? 0} />
+        <MetricCard label="Total Tokens" value={metrics?.total_tokens ? metrics.total_tokens.toLocaleString() : "0"} />
+        <MetricCard label="Est. Cost"    value={metrics?.estimated_cost_usd != null ? `$${metrics.estimated_cost_usd.toFixed(4)}` : "$0.00"}
+          subtitle="GPT-4o pricing" />
+        <MetricCard label="Priority Dist."
+          value={metrics?.cases_by_priority ? Object.entries(metrics.cases_by_priority).map(([k,v]) => `${k}: ${v}`).join(", ") : "\u2014"} />
       </div>
 
       <div className="card" style={{ padding: 0 }}>
