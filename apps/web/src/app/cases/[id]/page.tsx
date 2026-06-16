@@ -7,7 +7,9 @@ import { ConfidenceIndicator } from "@/components/ui/ConfidenceIndicator";
 import { api } from "@/lib/api";
 import type { Case, Recommendation } from "@/types";
 
-/* ── Reason Modal ─────────────────────────────────────────────── */
+const WORKFLOW_STEPS = ["Triage", "Retrieval", "Tool Planning", "Tool Execution", "Decision", "Safety Gate", "Complete"];
+
+/* -- Reason Modal ---------------------------------------------------- */
 function ReasonModal({ type, onConfirm, onCancel }: { type: "escalate" | "reject"; onConfirm: (r: string) => void; onCancel: () => void }) {
   const [reason, setReason] = useState("");
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -36,7 +38,7 @@ function ReasonModal({ type, onConfirm, onCancel }: { type: "escalate" | "reject
             rows={4}
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            placeholder={isEsc ? "e.g. Requires supervisor review…" : "e.g. Conflicts with customer history…"}
+            placeholder={isEsc ? "e.g. Requires supervisor review..." : "e.g. Conflicts with customer history..."}
             className="mac-input"
           />
           <p style={{ fontSize: 10, color: "#888", fontFamily: '"Geneva", sans-serif', marginTop: 4 }}>
@@ -58,7 +60,40 @@ function ReasonModal({ type, onConfirm, onCancel }: { type: "escalate" | "reject
   );
 }
 
-/* ── Case Detail Page ─────────────────────────────────────────── */
+/* -- Step Progress Bar ----------------------------------------------- */
+function StepProgress({ completedSteps, running }: { completedSteps: string[]; running: boolean }) {
+  return (
+    <div style={{ display: "flex", gap: 2, padding: "8px 10px" }}>
+      {WORKFLOW_STEPS.map((step) => {
+        const done = completedSteps.includes(step);
+        const isActive = running && !done && completedSteps.length > 0 && WORKFLOW_STEPS[completedSteps.length] === step;
+        return (
+          <div
+            key={step}
+            style={{
+              flex: 1,
+              textAlign: "center",
+              padding: "4px 2px",
+              fontSize: 9,
+              fontFamily: '"Geneva", sans-serif',
+              fontWeight: done ? "bold" : "normal",
+              color: done ? "#FFF" : isActive ? "#000080" : "#888",
+              background: done ? "#000080" : isActive ? "#E8E8FF" : "#D4D0C8",
+              border: "1px solid",
+              borderColor: done ? "#000060" : "#A0A0A0",
+              borderRight: "none",
+              transition: "all 0.3s ease",
+            }}
+          >
+            {step}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* -- Case Detail Page ------------------------------------------------ */
 export default function CaseDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -72,6 +107,7 @@ export default function CaseDetailPage() {
   const [workflowRunning, setWorkflowRunning] = useState(false);
   const [workflowResult, setWorkflowResult]   = useState<any>(null);
   const [reasonModal, setReasonModal] = useState<"escalate" | "reject" | null>(null);
+  const [completedSteps, setCompletedSteps] = useState<string[]>([]);
 
   const loadData = () => {
     Promise.all([api.cases.get(id), api.cases.recommendations(id), api.cases.history(id), api.cases.notes(id)])
@@ -98,8 +134,59 @@ export default function CaseDetailPage() {
 
   const handleRunWorkflow = async () => {
     setWorkflowRunning(true);
-    try { const r = await api.workflow.run(id); setWorkflowResult(r); loadData(); }
-    catch (e: any) { alert(e.message); }
+    setCompletedSteps([]);
+    setWorkflowResult(null);
+
+    try {
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
+      const res = await fetch(`${API_BASE}/api/v1/workflow/run/stream`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ case_id: id }),
+      });
+
+      if (!res.ok || !res.body) throw new Error("Stream unavailable");
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const event = JSON.parse(line.slice(6));
+            if (event.step === "done") {
+              setWorkflowResult({ status: event.status });
+            } else {
+              setCompletedSteps((prev) =>
+                prev.includes(event.step) ? prev : [...prev, event.step]
+              );
+            }
+          } catch {
+            // skip malformed events
+          }
+        }
+      }
+      loadData();
+    } catch {
+      // Fallback to non-streaming endpoint
+      try {
+        const r = await api.workflow.run(id);
+        setWorkflowResult(r);
+        setCompletedSteps(WORKFLOW_STEPS);
+        loadData();
+      } catch (e: any) {
+        alert(e.message);
+      }
+    }
     setWorkflowRunning(false);
   };
 
@@ -133,7 +220,7 @@ export default function CaseDetailPage() {
         <div className="mac-toolbar" style={{ justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <button onClick={() => router.push("/cases")} className="mac-btn" style={{ minWidth: 0, padding: "2px 8px" }}>
-              ← Back
+              &larr; Back
             </button>
             <span style={{ fontFamily: '"Monaco", monospace', fontSize: 11, color: "#555" }}>{caseData.case_number}</span>
             <span style={{ fontFamily: '"Chicago", "Charcoal", sans-serif', fontSize: 12, fontWeight: "bold", color: "#000" }}>
@@ -168,19 +255,17 @@ export default function CaseDetailPage() {
                     Triage, retrieve context, execute tools, and generate a recommendation.
                   </p>
                   <button onClick={handleRunWorkflow} disabled={workflowRunning} className="mac-btn-default">
-                    {workflowRunning ? "Running…" : "Run Workflow"}
+                    {workflowRunning ? "Running..." : "Run Workflow"}
                   </button>
                 </div>
+                {(workflowRunning || completedSteps.length > 0) && (
+                  <StepProgress completedSteps={completedSteps} running={workflowRunning} />
+                )}
                 {workflowResult && (
                   <div style={{ padding: "0 10px 8px", borderTop: "1px solid #D4D0C8" }}>
-                    <p style={{ fontFamily: '"Geneva", sans-serif', fontSize: 10, color: "#555", margin: "6px 0 4px" }}>
-                      Completed — {workflowResult.steps?.length} steps
+                    <p style={{ fontFamily: '"Geneva", sans-serif', fontSize: 10, color: workflowResult.status === "failed" ? "#880000" : "#555", margin: "6px 0 4px" }}>
+                      {workflowResult.status === "failed" ? "Workflow failed" : `Completed -- ${workflowResult.steps?.length || completedSteps.length} steps`}
                     </p>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                      {workflowResult.steps?.map((s: any, i: number) => (
-                        <span key={i} className="badge badge-approved">{s.step}</span>
-                      ))}
-                    </div>
                   </div>
                 )}
               </div>
@@ -195,7 +280,7 @@ export default function CaseDetailPage() {
                   <ConfidenceIndicator score={latestRec.confidence_score} />
                 </div>
 
-                {/* Analyst Summary — quick-read briefing */}
+                {/* Analyst Summary */}
                 {latestRec.analyst_summary && (
                   <div style={{ background: "#FFFFF0", borderBottom: "1px solid #8B6914", padding: "8px 10px" }}>
                     <p style={{ fontFamily: '"Geneva", sans-serif', fontSize: 10, color: "#8B6914", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 3 }}>
@@ -240,7 +325,7 @@ export default function CaseDetailPage() {
 
                   <hr />
 
-                  {/* Rationale — full multi-paragraph analysis */}
+                  {/* Rationale */}
                   <div>
                     <p style={labelStyle}>Analysis &amp; Rationale</p>
                     <div style={{ marginTop: 6 }}>
@@ -261,7 +346,6 @@ export default function CaseDetailPage() {
                     <div>
                       <p style={labelStyle}>Evidence Summary</p>
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 6 }}>
-                        {/* Supporting */}
                         <div>
                           <p style={{ fontFamily: '"Geneva", sans-serif', fontSize: 10, fontWeight: "bold", color: "#006400", marginBottom: 4 }}>
                             Supporting ({latestRec.evidence_summary.supporting?.length ?? 0})
@@ -272,7 +356,6 @@ export default function CaseDetailPage() {
                             </div>
                           ))}
                         </div>
-                        {/* Concerning */}
                         <div>
                           <p style={{ fontFamily: '"Geneva", sans-serif', fontSize: 10, fontWeight: "bold", color: "#8B6914", marginBottom: 4 }}>
                             Concerning ({latestRec.evidence_summary.concerning?.length ?? 0})
@@ -285,7 +368,6 @@ export default function CaseDetailPage() {
                             </div>
                           ))}
                         </div>
-                        {/* Missing */}
                         <div>
                           <p style={{ fontFamily: '"Geneva", sans-serif', fontSize: 10, fontWeight: "bold", color: "#880000", marginBottom: 4 }}>
                             Missing ({latestRec.evidence_summary.missing?.length ?? 0})
@@ -327,7 +409,7 @@ export default function CaseDetailPage() {
                               </div>
                               {c.quote && (
                                 <blockquote style={{ fontFamily: '"Monaco", monospace', fontSize: 10, color: "#333", borderLeft: "2px solid #000080", paddingLeft: 8, margin: "4px 0", lineHeight: 1.6, fontStyle: "italic" }}>
-                                  "{c.quote}"
+                                  &quot;{c.quote}&quot;
                                 </blockquote>
                               )}
                               {c.relevance && (
@@ -367,7 +449,7 @@ export default function CaseDetailPage() {
                     type="text"
                     className="mac-input"
                     style={{ flex: 1 }}
-                    placeholder="Add a note…"
+                    placeholder="Add a note..."
                     value={newNote}
                     onChange={(e) => setNewNote(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleAddNote()}
@@ -400,12 +482,12 @@ export default function CaseDetailPage() {
               <dl style={{ padding: "6px 10px" }}>
                 {[
                   ["Issue Type",   caseData.issue_type?.replace(/_/g, " ") || "Unclassified"],
-                  ["Transaction",  caseData.transaction_id || "—"],
-                  ["Account",      caseData.account_id || "—"],
-                  ["Merchant",     caseData.merchant_name || "—"],
-                  ["Amount",       caseData.amount ? `$${Number(caseData.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}` : "—"],
+                  ["Transaction",  caseData.transaction_id || "\u2014"],
+                  ["Account",      caseData.account_id || "\u2014"],
+                  ["Merchant",     caseData.merchant_name || "\u2014"],
+                  ["Amount",       caseData.amount ? `$${Number(caseData.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}` : "\u2014"],
                   ["Currency",     caseData.currency],
-                  ["Trace ID",     caseData.trace_id?.slice(0, 8) + "…" || "—"],
+                  ["Trace ID",     caseData.trace_id?.slice(0, 8) + "\u2026" || "\u2014"],
                 ].map(([label, value]) => (
                   <div key={label} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", borderBottom: "1px solid #F0F0F0" }}>
                     <dt style={{ fontFamily: '"Geneva", sans-serif', fontSize: 10, color: "#555" }}>{label}</dt>
@@ -422,10 +504,10 @@ export default function CaseDetailPage() {
                 {history.length > 0 ? (
                   history.map((h: any, i: number) => (
                     <div key={h.id || i} style={{ display: "flex", gap: 6, alignItems: "flex-start", paddingBottom: 6, marginBottom: 6, borderBottom: i < history.length - 1 ? "1px solid #D4D0C8" : "none" }}>
-                      <span style={{ color: "#000080", fontSize: 10, marginTop: 1 }}>►</span>
+                      <span style={{ color: "#000080", fontSize: 10, marginTop: 1 }}>&#9654;</span>
                       <div>
                         <p style={{ fontFamily: '"Geneva", sans-serif', fontSize: 10, color: "#000" }}>
-                          {h.from_status ? `${h.from_status} → ` : ""}{h.to_status}
+                          {h.from_status ? `${h.from_status} \u2192 ` : ""}{h.to_status}
                         </p>
                         <p style={{ fontFamily: '"Monaco", monospace', fontSize: 9, color: "#888" }}>
                           {new Date(h.created_at).toLocaleString()}
