@@ -10,6 +10,8 @@ export default function AuditPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter]   = useState<"all" | "human" | "system">("all");
 
+  useEffect(() => { document.title = "Audit Trail — LedgerDesk"; }, []);
+
   useEffect(() => {
     setLoading(true);
     const params: Record<string, string> = {};
@@ -39,7 +41,7 @@ export default function AuditPage() {
       </div>
 
       {loading ? (
-        <div className="card" style={{ height: 300 }} />
+        <div className="skeleton" style={{ height: 300 }} />
       ) : events.length === 0 ? (
         <EmptyState title="No audit events" description="Events will appear as cases are processed." />
       ) : (

@@ -21,6 +21,8 @@ export default function PromptsPage() {
   const [diffLoading, setDiffLoading] = useState(false);
   const [fullTemplate, setFullTemplate] = useState<{ id: string; template: string } | null>(null);
 
+  useEffect(() => { document.title = "Prompts — LedgerDesk"; }, []);
+
   useEffect(() => {
     api.prompts
       .list()

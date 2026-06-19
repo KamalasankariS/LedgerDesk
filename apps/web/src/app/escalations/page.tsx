@@ -20,6 +20,7 @@ export default function EscalationsPage() {
       .finally(() => setLoading(false));
   };
 
+  useEffect(() => { document.title = "Escalations — LedgerDesk"; }, []);
   useEffect(() => { load(); }, []);
 
   return (
@@ -42,7 +43,7 @@ export default function EscalationsPage() {
 
       {/* Table */}
       {loading ? (
-        <div className="card" style={{ height: 200 }} />
+        <div className="skeleton" style={{ height: 200 }} />
       ) : cases.length === 0 ? (
         <EmptyState title="No escalated cases" description="All clear — no cases are currently awaiting supervisor review." />
       ) : (

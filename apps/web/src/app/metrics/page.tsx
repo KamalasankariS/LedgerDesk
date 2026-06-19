@@ -15,11 +15,20 @@ export default function MetricsPage() {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [loading, setLoading] = useState(true);
 
+  useEffect(() => { document.title = "Metrics — LedgerDesk"; }, []);
+
   useEffect(() => {
     api.metrics.dashboard().then(setMetrics).catch(() => setMetrics(null)).finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="card" style={{ height: 300 }} />;
+  if (loading) return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+        {[...Array(4)].map((_, i) => <div key={i} className="skeleton" style={{ height: 80 }} />)}
+      </div>
+      <div className="skeleton" style={{ height: 200 }} />
+    </div>
+  );
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>

@@ -5,12 +5,16 @@ import { useRouter } from "next/navigation";
 import { MetricCard } from "@/components/ui/MetricCard";
 import { Badge }      from "@/components/ui/Badge";
 import { api }        from "@/lib/api";
+import { showToast }  from "@/components/ui/Toast";
 import type { DashboardMetrics } from "@/types";
 
 export default function DashboardPage() {
   const router = useRouter();
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [loading, setLoading] = useState(true);
+  const [seeding, setSeeding] = useState(false);
+
+  useEffect(() => { document.title = "Dashboard — LedgerDesk"; }, []);
 
   useEffect(() => {
     api.metrics.dashboard().then(setMetrics).catch(() => setMetrics(null)).finally(() => setLoading(false));
@@ -20,9 +24,9 @@ export default function DashboardPage() {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
-          {[...Array(4)].map((_, i) => <div key={i} className="card" style={{ height: 80 }} />)}
+          {[...Array(4)].map((_, i) => <div key={i} className="skeleton" style={{ height: 80 }} />)}
         </div>
-        <div className="card" style={{ height: 120 }} />
+        <div className="skeleton" style={{ height: 120 }} />
       </div>
     );
   }
@@ -110,9 +114,25 @@ export default function DashboardPage() {
           <p style={{ fontFamily: '"Geneva",sans-serif', fontSize: 11, color: "#555", maxWidth: 320, margin: "0 auto" }}>
             Agentic financial operations copilot for transaction exception handling and policy-grounded case resolution.
           </p>
-          <p style={{ fontFamily: '"Geneva",sans-serif', fontSize: 10, color: "#888", marginTop: 10 }}>
-            Seed the database to populate cases and begin the demo workflow.
-          </p>
+          <button
+            disabled={seeding}
+            className="mac-btn-default"
+            style={{ marginTop: 14 }}
+            onClick={async () => {
+              setSeeding(true);
+              try {
+                const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
+                const res = await fetch(`${API_BASE}/api/v1/seed`, { method: "POST" });
+                if (!res.ok) throw new Error("Seed failed");
+                showToast("Demo data seeded successfully!", "success");
+                api.metrics.dashboard().then(setMetrics).catch(() => setMetrics(null));
+              } catch {
+                showToast("Failed to seed database. Is the API running?", "error");
+              } finally { setSeeding(false); }
+            }}
+          >
+            {seeding ? "Seeding..." : "Seed Demo Data"}
+          </button>
         </div>
       )}
     </div>

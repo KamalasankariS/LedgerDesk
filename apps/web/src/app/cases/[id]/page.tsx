@@ -119,6 +119,9 @@ export default function CaseDetailPage() {
   };
 
   useEffect(() => { loadData.current(); }, [id]);
+  useEffect(() => {
+    if (caseData) document.title = `${caseData.case_number} — LedgerDesk`;
+  }, [caseData]);
 
   const submitAction = async (actionType: string, reason?: string) => {
     setActionLoading(true);
@@ -198,7 +201,7 @@ export default function CaseDetailPage() {
     setNewNote(""); loadData.current();
   };
 
-  if (loading) return <div className="card" style={{ height: 300 }} />;
+  if (loading) return <div className="skeleton" style={{ height: 300 }} />;
   if (!caseData) return <p style={{ fontFamily: '"Geneva", sans-serif', fontSize: 12, padding: 20, color: "#555" }}>Case not found.</p>;
 
   const latestRec = recs[0];

@@ -169,6 +169,8 @@ export default function CaseQueuePage() {
   const [priorityFilter, setPriorityFilter] = useState("");
   const [showNewCase, setShowNewCase]   = useState(false);
 
+  useEffect(() => { document.title = "Case Queue — LedgerDesk"; }, []);
+
   useEffect(() => {
     const params: Record<string, string> = {};
     if (search)         params.search   = search;
@@ -217,7 +219,7 @@ export default function CaseQueuePage() {
 
         {/* Content */}
         {loading ? (
-          <div className="card" style={{ height: 200 }} />
+          <div className="skeleton" style={{ height: 200 }} />
         ) : cases.length === 0 ? (
           <EmptyState title="No cases found" description="Adjust your filters or create a new case."
             action={<button onClick={() => setShowNewCase(true)} className="mac-btn-default">New Case</button>} />

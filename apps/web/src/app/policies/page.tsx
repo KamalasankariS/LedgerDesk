@@ -19,6 +19,8 @@ export default function PoliciesPage() {
   const [loadingContent, setLoadingContent] = useState(false);
   const [contentError, setContentError] = useState<string | null>(null);
 
+  useEffect(() => { document.title = "Policies — LedgerDesk"; }, []);
+
   useEffect(() => {
     api.policies.list().then(setPolicies).catch(() => setPolicies([])).finally(() => setLoadingList(false));
   }, []);
@@ -40,8 +42,8 @@ export default function PoliciesPage() {
   if (loadingList) {
     return (
       <div style={{ display: "grid", gridTemplateColumns: "200px 1fr", gap: 8, height: "calc(100vh - 120px)" }}>
-        <div className="card" />
-        <div className="card" />
+        <div className="skeleton" style={{ height: "100%" }} />
+        <div className="skeleton" style={{ height: "100%" }} />
       </div>
     );
   }

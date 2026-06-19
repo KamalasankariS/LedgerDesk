@@ -21,6 +21,8 @@ export default function EvaluationPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
 
+  useEffect(() => { document.title = "Evaluation — LedgerDesk"; }, []);
+
   const loadRuns = () => {
     api.metrics
       .evaluations()
