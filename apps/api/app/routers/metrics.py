@@ -55,13 +55,6 @@ async def dashboard_metrics(db: AsyncSession = Depends(get_db)):
     # Agent run + token stats
     agent_run_count = (await db.execute(select(func.count(AgentRun.id)))).scalar() or 0
 
-    token_result = await db.execute(
-        select(
-            func.sum(AgentRun.duration_ms),
-        ).where(AgentRun.token_usage.isnot(None))
-    )
-    _ = token_result.one()
-
     # Aggregate token usage from JSON column
     all_runs = await db.execute(
         select(AgentRun.token_usage).where(AgentRun.token_usage.isnot(None))
