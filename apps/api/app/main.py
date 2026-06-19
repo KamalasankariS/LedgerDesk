@@ -59,3 +59,12 @@ app.include_router(prompts.router, prefix="/api/v1/prompts", tags=["Prompts"])
 app.include_router(retrieval.router, prefix="/api/v1/retrieval", tags=["Retrieval"])
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Auth"])
 app.include_router(users.router, prefix="/api/v1/users", tags=["Users"])
+
+
+@app.post("/api/v1/seed", tags=["Admin"])
+async def seed_database():
+    """Seed the database with sample demo data."""
+    from app.seed import seed
+
+    await seed()
+    return {"status": "ok", "message": "Database seeded with demo data."}
