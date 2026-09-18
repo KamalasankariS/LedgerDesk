@@ -61,8 +61,8 @@ class RequestMetrics:
             )
 
             # Apdex: satisfied < 250ms, tolerating < 1000ms, frustrated >= 1000ms
-            satisfied = sum(1 for l in self._recent_latencies if l < 250)
-            tolerating = sum(1 for l in self._recent_latencies if 250 <= l < 1000)
+            satisfied = sum(1 for lat in self._recent_latencies if lat < 250)
+            tolerating = sum(1 for lat in self._recent_latencies if 250 <= lat < 1000)
             total_sample = len(self._recent_latencies)
             apdex = (
                 (satisfied + tolerating * 0.5) / total_sample
