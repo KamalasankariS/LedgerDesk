@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.logging import setup_logging
+from app.core.middleware import RequestTrackingMiddleware
 from app.routers import (
     audit,
     auth,
@@ -40,6 +41,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(RequestTrackingMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,

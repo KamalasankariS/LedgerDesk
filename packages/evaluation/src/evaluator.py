@@ -63,6 +63,9 @@ def load_eval_cases(data_dir: str | Path) -> list[EvalCase]:
         "settlement_delay": "close_no_action",
         "reversal_confusion": "close_no_action",
         "merchant_reference_mismatch": "request_additional_info",
+        "timeline_inconsistency": "request_additional_info",
+        "policy_eligibility": "escalate_to_senior",
+        "account_servicing_exception": "escalate_to_senior",
         "unknown": "escalate_to_senior",
     }
 

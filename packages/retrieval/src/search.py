@@ -24,7 +24,7 @@ class RetrievalResult:
     metadata: dict | None = None
 
 
-MIN_RELEVANCE_SCORE = 0.35
+MIN_RELEVANCE_SCORE = 0.50
 
 
 async def search_policies(

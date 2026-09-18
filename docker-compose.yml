@@ -47,6 +47,13 @@ services:
     volumes:
       - ./apps/api:/app
       - ./sample_data:/app/sample_data
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.0"
+        reservations:
+          memory: 256M
 
   worker:
     build:
@@ -66,6 +73,13 @@ services:
     volumes:
       - ./apps/api:/app
       - ./sample_data:/app/sample_data
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+        reservations:
+          memory: 128M
 
   web:
     build:
@@ -78,6 +92,13 @@ services:
       - "3000:3000"
     depends_on:
       - api
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+        reservations:
+          memory: 128M
 
 volumes:
   pgdata:

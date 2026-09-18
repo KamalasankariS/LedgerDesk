@@ -117,16 +117,23 @@ class MockLLMClient:
 
     def _mock_triage(self, prompt: str) -> dict:
         issue_type = "duplicate_charge"
-        if "authorization" in prompt.lower() or "pending" in prompt.lower():
+        p = prompt.lower()
+        if "authorization" in p or "pending" in p or "hold" in p:
             issue_type = "pending_authorization"
-        elif "refund" in prompt.lower():
+        elif "refund" in p:
             issue_type = "refund_mismatch"
-        elif "settlement" in prompt.lower() or "delay" in prompt.lower():
+        elif "settlement" in p or "delay" in p:
             issue_type = "settlement_delay"
-        elif "reversal" in prompt.lower():
+        elif "reversal" in p or "partial" in p:
             issue_type = "reversal_confusion"
-        elif "descriptor" in prompt.lower() or "recognize" in prompt.lower():
+        elif "descriptor" in p or "recognize" in p or "mismatch" in p:
             issue_type = "merchant_reference_mismatch"
+        elif "timeline" in p or "sequence" in p or "order" in p:
+            issue_type = "timeline_inconsistency"
+        elif "eligib" in p or "multiple polic" in p or "which policy" in p:
+            issue_type = "policy_eligibility"
+        elif "credit limit" in p or "statement" in p or "fee" in p or "account status" in p:
+            issue_type = "account_servicing_exception"
 
         return {
             "issue_type": issue_type,
@@ -184,6 +191,16 @@ class MockLLMClient:
     def _mock_decision(self, prompt: str) -> dict:  # noqa: C901
         """Generate a detailed, case-specific mock recommendation."""
         p = prompt.lower()
+
+        # ── Handle new issue types first ──────────────────────────────
+        if "timeline" in p and ("inconsisten" in p or "sequence" in p or "before auth" in p):
+            return self._mock_decision_timeline(p)
+        elif ("eligib" in p or "multiple polic" in p or "which policy" in p
+              or "no matching policy" in p or "cryptocurrency" in p):
+            return self._mock_decision_eligibility(p)
+        elif ("late fee" in p or "credit limit" in p or "statement error" in p
+              or "account status" in p or "fee charged" in p or "fee reversal" in p):
+            return self._mock_decision_account_exception(p)
 
         # ── Determine action & confidence ──────────────────────────────
         if "refund" in p and (
@@ -450,13 +467,243 @@ class MockLLMClient:
             ),
         }
 
-    def _mock_safety(self, prompt: str) -> dict:
+    def _mock_decision_timeline(self, p: str) -> dict:
+        """Mock decision for timeline inconsistency cases."""
+        action = "request_additional_info"
+        confidence = 0.79
+        rationale = (
+            "The transaction timeline shows events occurring out of the expected chronological "
+            "order. Per the Timeline Inconsistency Handling Policy (POL-TXN-005, Section 3.2), "
+            "when a settlement date precedes the authorization date, the case requires additional "
+            "information from the merchant's processor to determine whether this is a system "
+            "timing error or a processing irregularity.\n\n"
+            "The recommended action is to request the merchant's settlement batch records and "
+            "processor timestamps. If the merchant confirms a batch processing error, the timeline "
+            "can be corrected without further action. If the merchant cannot explain the discrepancy, "
+            "the case should be escalated for potential system-level investigation.\n\n"
+            "Note: The variance thresholds in POL-TXN-005 Section 3.2 indicate that any settlement "
+            "preceding authorization is grounds for immediate additional investigation."
+        )
         return {
-            "safe_to_present": True,
+            "recommended_action": action,
+            "rationale": rationale,
+            "confidence_score": confidence,
+            "policy_citations": [
+                {
+                    "document": "Timeline Inconsistency Handling Policy",
+                    "section": "Section 3.2 — Variance Thresholds",
+                    "quote": "Settlement before authorization: Any occurrence requires immediate escalation or additional information request.",
+                    "relevance": "Directly applicable to the out-of-order timeline observed in this case.",
+                },
+            ],
+            "evidence_summary": {
+                "supporting": [
+                    "Transaction timeline confirms settlement date precedes authorization date",
+                    "Policy POL-TXN-005 classifies this as requiring investigation",
+                ],
+                "concerning": [
+                    "Could indicate a systemic processing issue affecting other transactions",
+                ],
+                "missing": [
+                    "Merchant's settlement batch records with processor timestamps",
+                    "Acquiring bank's authorization log for cross-reference",
+                ],
+            },
+            "structured_decision": {
+                "action": action,
+                "amount_impact": None,
+                "requires_merchant_contact": True,
+                "requires_cardholder_notification": False,
+                "estimated_resolution_days": 5,
+                "risk_level": "medium",
+            },
+            "required_approval_level": "analyst",
+            "analyst_summary": (
+                "The system recommends 'Request Additional Info' with 79% confidence. "
+                "Timeline inconsistency detected — settlement precedes authorization. "
+                "Merchant processor records needed. Estimated resolution: 5 business days."
+            ),
+        }
+
+    def _mock_decision_eligibility(self, p: str) -> dict:
+        """Mock decision for policy eligibility cases."""
+        action = "escalate_to_senior"
+        confidence = 0.68
+        rationale = (
+            "This case involves ambiguity in policy applicability. Per the Policy Eligibility "
+            "Determination policy (POL-OPS-003, Section 2.2 for multi-policy cases or Section 2.3 "
+            "for no-policy cases), when the system cannot determine a single dominant policy with "
+            "sufficient confidence, the case must be escalated to a senior analyst.\n\n"
+            "The confidence score of 0.68 falls below the 0.80 threshold required for multi-policy "
+            "cases (POL-OPS-003, Section 4). A senior analyst should evaluate the competing policy "
+            "claims, determine the primary resolution path, and document the eligibility rationale "
+            "for audit purposes."
+        )
+        return {
+            "recommended_action": action,
+            "rationale": rationale,
+            "confidence_score": confidence,
+            "policy_citations": [
+                {
+                    "document": "Policy Eligibility Determination",
+                    "section": "Section 2.2 — Multi-Policy Cases / Section 2.3 — No-Policy Cases",
+                    "quote": "When two or more policies could apply, evaluate the primary cardholder complaint to determine the dominant issue. Multi-policy cases require confidence >= 0.80 or escalation.",
+                    "relevance": "Case involves multiple potentially applicable policies or no matching policy.",
+                },
+            ],
+            "evidence_summary": {
+                "supporting": [
+                    "Multiple policy documents retrieved but none is clearly dominant",
+                    "All available evidence has been gathered via tool calls",
+                ],
+                "concerning": [
+                    "Confidence score 0.68 is below the 0.80 threshold for multi-policy resolution",
+                    "Incorrect policy application could result in improper resolution",
+                ],
+                "missing": [
+                    "Senior analyst determination of primary policy applicability",
+                    "Additional cardholder context to disambiguate the core complaint",
+                ],
+            },
+            "structured_decision": {
+                "action": action,
+                "amount_impact": None,
+                "requires_merchant_contact": False,
+                "requires_cardholder_notification": False,
+                "estimated_resolution_days": 3,
+                "risk_level": "medium",
+            },
+            "required_approval_level": "senior_analyst",
+            "analyst_summary": (
+                "The system recommends 'Escalate To Senior' with 68% confidence. "
+                "Policy eligibility is ambiguous — senior analyst review required to determine "
+                "the correct resolution path. Estimated resolution: 3 business days."
+            ),
+        }
+
+    def _mock_decision_account_exception(self, p: str) -> dict:
+        """Mock decision for account servicing exception cases."""
+        if "fee" in p or "late" in p:
+            action = "reverse_fee"
+            confidence = 0.86
+            rationale = (
+                "The account records show payment was received before the due date, yet a late "
+                "payment fee was assessed. Per the Account Servicing Exception Policy (POL-ACCT-001, "
+                "Section 2.3), fees charged in error must be reversed. The payment posting timeline "
+                "confirms the payment cleared before the statement due date.\n\n"
+                "The resolution authority table (Section 3.2) permits analyst-level fee reversals "
+                "up to $500. Since this fee is $39.00, it falls within analyst authority."
+            )
+            supporting = [
+                "Payment posting date confirmed before due date via account activity tool",
+                "Fee assessment appears to be a processing error",
+                "Amount within analyst reversal authority ($500 limit)",
+            ]
+        else:
+            action = "escalate_to_senior"
+            confidence = 0.74
+            rationale = (
+                "The account shows a discrepancy between the expected and actual account state. "
+                "Per the Account Servicing Exception Policy (POL-ACCT-001, Section 3.2), credit "
+                "posting corrections exceeding analyst authority or involving account status changes "
+                "require senior analyst or supervisor review.\n\n"
+                "The evidence gathered confirms the payment was made but available credit has not "
+                "been updated. This may indicate a posting delay or a system-level issue."
+            )
+            supporting = [
+                "Payment confirmed via bank debit records",
+                "Account state does not reflect the payment",
+                "No account holds or restrictions found",
+            ]
+
+        return {
+            "recommended_action": action,
+            "rationale": rationale,
+            "confidence_score": confidence,
+            "policy_citations": [
+                {
+                    "document": "Account Servicing Exception Policy",
+                    "section": "Section 2.3 / Section 3.2",
+                    "quote": "Fees charged in error must be reversed. Credit posting corrections within analyst authority: up to $5,000.",
+                    "relevance": "Defines resolution authority and required action for account servicing exceptions.",
+                },
+            ],
+            "evidence_summary": {
+                "supporting": supporting,
+                "concerning": [
+                    "If issue is systemic, other accounts may be affected",
+                ],
+                "missing": [
+                    "Internal payment processing log to confirm posting pipeline status",
+                ],
+            },
+            "structured_decision": {
+                "action": action,
+                "amount_impact": None,
+                "requires_merchant_contact": False,
+                "requires_cardholder_notification": True,
+                "estimated_resolution_days": 2,
+                "risk_level": "low",
+            },
+            "required_approval_level": "analyst" if action == "reverse_fee" else "senior_analyst",
+            "analyst_summary": (
+                f"The system recommends '{action.replace('_', ' ').title()}' with "
+                f"{int(confidence * 100)}% confidence. "
+                f"Account servicing exception identified. "
+                f"Estimated resolution: 2 business days."
+            ),
+        }
+
+    def _mock_safety(self, prompt: str) -> dict:
+        p = prompt.lower()
+        flags = []
+        safe = True
+        approval_override = None
+
+        # Check confidence score in prompt
+        import re
+        conf_match = re.search(r"confidence.{0,30}?(0\.\d+)", p)
+        confidence = float(conf_match.group(1)) if conf_match else 0.8
+
+        # Check amount in prompt — match numbers after "amount" with optional $ or currency
+        amt_match = re.search(r"amount.{0,30}?\$?\s*([\d,]+\.?\d*)", p)
+        amount = 0.0
+        if amt_match and amt_match.group(1).strip():
+            try:
+                amount = float(amt_match.group(1).replace(",", ""))
+            except ValueError:
+                pass
+
+        if confidence < 0.70:
+            flags.append("low_confidence_below_threshold")
+            approval_override = "senior_analyst"
+        if confidence < 0.50:
+            safe = False
+            flags.append("critically_low_confidence")
+
+        if amount > 5000:
+            flags.append("high_value_case")
+            if approval_override is None:
+                approval_override = "senior_analyst"
+        if amount > 25000:
+            approval_override = "supervisor"
+        if amount > 100000:
+            approval_override = "operations_manager"
+
+        if "no policy" in p or "no citation" in p or "num_citations: 0" in p:
+            flags.append("no_policy_grounding")
+            safe = False
+
+        return {
+            "safe_to_present": safe,
             "requires_human_review": True,
-            "approval_level_override": None,
-            "flags": [],
-            "reasoning": "Recommendation meets minimum grounding and confidence thresholds. Human review required per standard workflow.",
+            "approval_level_override": approval_override,
+            "flags": flags,
+            "reasoning": (
+                f"Safety validation complete. Confidence: {confidence:.2f}, Amount: ${amount:,.2f}. "
+                f"{'Flags raised: ' + ', '.join(flags) + '.' if flags else 'No flags raised.'} "
+                f"Human review required per standard workflow."
+            ),
         }
 
     def _mock_case_writer(self, prompt: str) -> dict:

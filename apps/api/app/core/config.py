@@ -30,10 +30,14 @@ class Settings(BaseSettings):
     demo_analyst_id: str = "00000000-0000-0000-0000-000000000002"
 
     # Agent settings
-    confidence_threshold: float = 0.7
+    confidence_threshold: float = 0.75
     grounding_threshold: float = 0.5
-    max_tool_calls: int = 10
+    max_tool_calls: int = 6
     tool_timeout_seconds: int = 30
+
+    # Escalation thresholds
+    high_value_confidence_threshold: float = 0.80
+    high_value_amount: float = 5000.0
 
     model_config = {"env_file": ".env", "extra": "allow"}
 

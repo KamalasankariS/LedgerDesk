@@ -1,5 +1,6 @@
 """Main workflow orchestrator - coordinates all agents through the state machine."""
 
+import asyncio
 import json
 import time
 import uuid
@@ -161,22 +162,33 @@ async def run_full_workflow(db: AsyncSession, case_id: uuid.UUID) -> dict:
             }
         )
 
-        # === STEP 4: TOOL EXECUTION ===
+        # === STEP 4: TOOL EXECUTION (parallelized) ===
         tool_outputs = {}
         if tool_plan_result.status == "completed":
             planned_tools = tool_plan_result.output.get("tools", [])
-            for tool_spec in planned_tools[: settings.max_tool_calls]:
+            tools_to_run = planned_tools[: settings.max_tool_calls]
+
+            # Prepare all tool calls
+            async def _run_single_tool(tool_spec):
                 tool_name = tool_spec.get("tool_name", "")
                 params = tool_spec.get("params", {})
-
-                # Replace placeholder params with actual case data
                 resolved_params = _resolve_tool_params(params, case_data)
-
-                # Execute tool
-                tool_output = await _execute_tool(
+                result = await _execute_tool(
                     db, case_id, tool_name, resolved_params, trace_id
                 )
-                tool_outputs[tool_name] = tool_output
+                return tool_name, result
+
+            # Execute tools concurrently
+            results = await asyncio.gather(
+                *[_run_single_tool(ts) for ts in tools_to_run],
+                return_exceptions=True,
+            )
+            for r in results:
+                if isinstance(r, Exception):
+                    logger.warning("parallel_tool_failed", error=str(r))
+                else:
+                    tool_name, tool_output = r
+                    tool_outputs[tool_name] = tool_output
 
         await case_service.transition_status(case, CaseStatus.TOOLS_EXECUTED, "system")
         steps.append(
@@ -269,6 +281,22 @@ async def run_full_workflow(db: AsyncSession, case_id: uuid.UUID) -> dict:
             override = safety_output.get("approval_level_override")
             if override and recommendation_data:
                 rec.required_approval_level = override
+
+            # Apply high-value confidence threshold
+            case_amount = float(case.amount) if case.amount else 0.0
+            case_confidence = recommendation_data.get("confidence_score", 0.0)
+            if (
+                case_amount >= settings.high_value_amount
+                and case_confidence < settings.high_value_confidence_threshold
+            ):
+                rec.required_approval_level = "senior_analyst"
+                case.requires_human_review = True
+                logger.info(
+                    "high_value_escalation",
+                    case_id=str(case_id),
+                    amount=case_amount,
+                    confidence=case_confidence,
+                )
 
         await case_service.transition_status(case, CaseStatus.SAFETY_CHECKED, "system")
         steps.append(

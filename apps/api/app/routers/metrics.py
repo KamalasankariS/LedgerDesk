@@ -9,6 +9,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.middleware import request_metrics
 from app.models.agent import AgentRun, Recommendation, ToolInvocation
 from app.models.audit import AnalystAction, EvaluationRun
 from app.models.case import Case
@@ -107,6 +108,78 @@ async def workflow_metrics(db: AsyncSession = Depends(get_db)):
             "recommendation_acceptance_rate",
         ],
     }
+
+
+@router.get("/by-issue-type")
+async def metrics_by_issue_type(db: AsyncSession = Depends(get_db)):
+    """Breakdown of accuracy, confidence, and escalation rate per issue type."""
+    # Cases per issue type
+    issue_result = await db.execute(
+        select(Case.issue_type, func.count(Case.id)).group_by(Case.issue_type)
+    )
+    issue_counts = {
+        (row[0].value if hasattr(row[0], "value") else str(row[0])): row[1]
+        for row in issue_result.all()
+        if row[0] is not None
+    }
+
+    # Avg confidence per issue type
+    conf_result = await db.execute(
+        select(Case.issue_type, func.avg(Case.confidence_score))
+        .where(Case.confidence_score.isnot(None))
+        .group_by(Case.issue_type)
+    )
+    confidence_by_type = {
+        (row[0].value if hasattr(row[0], "value") else str(row[0])): round(row[1], 3)
+        for row in conf_result.all()
+        if row[0] is not None
+    }
+
+    # Escalation count per issue type
+    esc_result = await db.execute(
+        select(Case.issue_type, func.count(Case.id))
+        .where(Case.status == "escalated")
+        .group_by(Case.issue_type)
+    )
+    escalated_by_type = {
+        (row[0].value if hasattr(row[0], "value") else str(row[0])): row[1]
+        for row in esc_result.all()
+        if row[0] is not None
+    }
+
+    # Completed (approved) per issue type
+    completed_result = await db.execute(
+        select(Case.issue_type, func.count(Case.id))
+        .where(Case.status.in_(["completed", "approved"]))
+        .group_by(Case.issue_type)
+    )
+    completed_by_type = {
+        (row[0].value if hasattr(row[0], "value") else str(row[0])): row[1]
+        for row in completed_result.all()
+        if row[0] is not None
+    }
+
+    # Build per-type summary
+    breakdown = {}
+    for issue_type, count in issue_counts.items():
+        completed = completed_by_type.get(issue_type, 0)
+        escalated = escalated_by_type.get(issue_type, 0)
+        breakdown[issue_type] = {
+            "total_cases": count,
+            "avg_confidence": confidence_by_type.get(issue_type),
+            "completed": completed,
+            "escalated": escalated,
+            "escalation_rate": round(escalated / count, 3) if count > 0 else 0.0,
+            "completion_rate": round(completed / count, 3) if count > 0 else 0.0,
+        }
+
+    return {"issue_type_breakdown": breakdown}
+
+
+@router.get("/requests")
+async def request_rate_metrics():
+    """Real-time request rate, latency percentiles, Apdex score, and error rate."""
+    return request_metrics.snapshot()
 
 
 @router.get("/evaluations")
