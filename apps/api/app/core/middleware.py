@@ -43,7 +43,7 @@ class RequestMetrics:
 
             self._recent_latencies.append(duration_ms)
             if len(self._recent_latencies) > self._max_recent:
-                self._recent_latencies = self._recent_latencies[-self._max_recent:]
+                self._recent_latencies = self._recent_latencies[-self._max_recent :]
 
     def snapshot(self) -> dict:
         with self._lock:
@@ -54,21 +54,13 @@ class RequestMetrics:
             )
             p95 = self._percentile(95) if self._recent_latencies else 0.0
             p99 = self._percentile(99) if self._recent_latencies else 0.0
-            error_rate = (
-                self.error_count / self.total_requests
-                if self.total_requests > 0
-                else 0.0
-            )
+            error_rate = self.error_count / self.total_requests if self.total_requests > 0 else 0.0
 
             # Apdex: satisfied < 250ms, tolerating < 1000ms, frustrated >= 1000ms
             satisfied = sum(1 for lat in self._recent_latencies if lat < 250)
             tolerating = sum(1 for lat in self._recent_latencies if 250 <= lat < 1000)
             total_sample = len(self._recent_latencies)
-            apdex = (
-                (satisfied + tolerating * 0.5) / total_sample
-                if total_sample > 0
-                else 1.0
-            )
+            apdex = (satisfied + tolerating * 0.5) / total_sample if total_sample > 0 else 1.0
 
             return {
                 "total_requests": self.total_requests,
@@ -99,6 +91,7 @@ class RequestMetrics:
     @staticmethod
     def _normalize_path(path: str) -> str:
         import re
+
         # Replace UUIDs with {id}
         path = re.sub(
             r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
