@@ -44,6 +44,7 @@ graph TB
         TOOLS[Tool Planner + Executor]
         DECISION[Decision Agent]
         SAFETY[Safety Gate]
+        WRITER[Case Writer]
     end
 
     subgraph Infrastructure
@@ -61,6 +62,7 @@ graph TB
     ORCH --> TOOLS
     ORCH --> DECISION
     ORCH --> SAFETY
+    ORCH --> WRITER
     RAG --> PG
 ```
 
@@ -82,13 +84,14 @@ created --> triaged --> context_retrieved --> tools_selected --> tools_executed
 - Structured case details with financial context
 - Priority-based queue with search and filtering
 
-### Agent Workflow
+### Agent Workflow (5 Agents)
 - **Triage Agent** -- classifies issue type, extracts entities, assigns workflow path
-- **Retrieval Agent** -- fetches relevant policy snippets and prior cases
-- **Tool Planner** -- selects and prioritizes internal tool calls
-- **Tool Executor** -- runs tools with typed JSON input/output
+- **Tool Planner** -- selects and prioritizes internal tool calls (executor runs them via `asyncio.gather`)
 - **Decision Agent** -- generates grounded recommendations with citations
 - **Safety Gate** -- validates confidence, grounding quality, and policy support
+- **Case Writer** -- produces human-readable case summaries for analyst review
+
+Retrieval (RAG) and tool execution are orchestrator steps, not standalone agents.
 
 ### Policy RAG
 - Ingests internal policy documents (markdown)
