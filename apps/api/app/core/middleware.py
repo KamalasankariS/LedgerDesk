@@ -5,11 +5,39 @@ from collections import defaultdict
 from threading import Lock
 
 import structlog
+from prometheus_client import Counter, Gauge, Histogram
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
 logger = structlog.get_logger()
+
+# Prometheus metrics
+PROM_REQUEST_COUNT = Counter(
+    "ledgerdesk_http_requests_total",
+    "Total HTTP requests",
+    ["method", "endpoint", "status"],
+)
+PROM_REQUEST_LATENCY = Histogram(
+    "ledgerdesk_http_request_duration_seconds",
+    "HTTP request latency in seconds",
+    ["method", "endpoint"],
+    buckets=[0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0],
+)
+PROM_ACTIVE_REQUESTS = Gauge(
+    "ledgerdesk_http_active_requests",
+    "Currently active HTTP requests",
+)
+PROM_AGENT_RUNS = Counter(
+    "ledgerdesk_agent_runs_total",
+    "Total agent runs",
+    ["agent_type", "status"],
+)
+PROM_WORKFLOW_DURATION = Histogram(
+    "ledgerdesk_workflow_duration_seconds",
+    "End-to-end workflow duration in seconds",
+    buckets=[0.1, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0, 60.0],
+)
 
 
 class RequestMetrics:
@@ -111,25 +139,49 @@ class RequestTrackingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next) -> Response:
         start = time.time()
         request_metrics.active_requests += 1
+        PROM_ACTIVE_REQUESTS.inc()
+
+        normalized = RequestMetrics._normalize_path(request.url.path)
 
         try:
             response = await call_next(request)
             duration_ms = (time.time() - start) * 1000
+            duration_s = duration_ms / 1000
             request_metrics.record_request(
                 method=request.method,
                 path=request.url.path,
                 status_code=response.status_code,
                 duration_ms=duration_ms,
             )
+            PROM_REQUEST_COUNT.labels(
+                method=request.method,
+                endpoint=normalized,
+                status=str(response.status_code),
+            ).inc()
+            PROM_REQUEST_LATENCY.labels(
+                method=request.method,
+                endpoint=normalized,
+            ).observe(duration_s)
             return response
         except Exception:
             duration_ms = (time.time() - start) * 1000
+            duration_s = duration_ms / 1000
             request_metrics.record_request(
                 method=request.method,
                 path=request.url.path,
                 status_code=500,
                 duration_ms=duration_ms,
             )
+            PROM_REQUEST_COUNT.labels(
+                method=request.method,
+                endpoint=normalized,
+                status="500",
+            ).inc()
+            PROM_REQUEST_LATENCY.labels(
+                method=request.method,
+                endpoint=normalized,
+            ).observe(duration_s)
             raise
         finally:
             request_metrics.active_requests -= 1
+            PROM_ACTIVE_REQUESTS.dec()
