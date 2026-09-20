@@ -36,7 +36,7 @@ async def search_policies(
     min_score: float = MIN_RELEVANCE_SCORE,
 ) -> list[RetrievalResult]:
     """Search policy chunks by semantic similarity."""
-    query_embedding = await get_embedding(query, api_key=api_key, use_local=True)
+    query_embedding = await get_embedding(query, api_key=api_key, use_local=(not api_key))
 
     # Try pgvector similarity search first (use savepoint to avoid poisoning session)
     try:
