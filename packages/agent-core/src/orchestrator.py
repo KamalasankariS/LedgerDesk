@@ -22,19 +22,38 @@ from agents import (
     run_safety_gate,
     run_case_writer,
 )
-from llm import LLMClient, MockLLMClient
+from llm import AnthropicLLMClient, LLMClient, MockLLMClient
 
 logger = structlog.get_logger()
 
 
-def _get_llm_client() -> LLMClient | MockLLMClient:
-    """Get the appropriate LLM client."""
-    if settings.openai_api_key:
+def _get_llm_client() -> LLMClient | AnthropicLLMClient | MockLLMClient:
+    """Get the appropriate LLM client based on configuration.
+
+    Priority: explicit llm_provider setting > auto-detect from API keys > mock.
+    """
+    provider = settings.llm_provider
+
+    if provider == "anthropic" or (
+        provider == "auto" and settings.anthropic_api_key
+    ):
+        logger.info("llm_provider_selected", provider="anthropic", model=settings.llm_model)
+        return AnthropicLLMClient(
+            api_key=settings.anthropic_api_key,
+            model=settings.llm_model if "claude" in settings.llm_model else "claude-sonnet-4-20250514",
+        )
+
+    if provider == "openai" or (
+        provider == "auto" and settings.openai_api_key
+    ):
+        logger.info("llm_provider_selected", provider="openai", model=settings.llm_model)
         return LLMClient(
             api_key=settings.openai_api_key,
             base_url=settings.openai_base_url,
             model=settings.llm_model,
         )
+
+    logger.info("llm_provider_selected", provider="mock")
     return MockLLMClient()
 
 
