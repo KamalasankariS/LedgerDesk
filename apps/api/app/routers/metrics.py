@@ -5,6 +5,8 @@ from datetime import UTC, datetime
 
 import structlog
 from fastapi import APIRouter, Depends
+from fastapi.responses import PlainTextResponse
+from prometheus_client import generate_latest
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -182,6 +184,15 @@ async def request_rate_metrics():
     return request_metrics.snapshot()
 
 
+@router.get("/prometheus")
+async def prometheus_metrics():
+    """Export metrics in Prometheus text format for scraping."""
+    return PlainTextResponse(
+        content=generate_latest().decode("utf-8"),
+        media_type="text/plain; version=0.0.4; charset=utf-8",
+    )
+
+
 @router.get("/evaluations")
 async def list_evaluations(db: AsyncSession = Depends(get_db)):
     result = await db.execute(
@@ -207,7 +218,119 @@ async def list_evaluations(db: AsyncSession = Depends(get_db)):
 
 @router.post("/evaluations/run")
 async def run_evaluation(db: AsyncSession = Depends(get_db)):
-    total = (await db.execute(select(func.count(Case.id)))).scalar() or 0
+    """Run evaluation by computing real metrics from DB data.
+
+    Compares each case's recommendation against expected actions
+    derived from issue-type heuristics, and computes per-issue-type
+    accuracy, confidence, and escalation metrics.
+    """
+    # Expected action mapping (mirrors packages/evaluation/src/evaluator.py)
+    expected_actions: dict[str, str] = {
+        "duplicate_charge": "initiate_merchant_dispute",
+        "pending_authorization": "release_authorization",
+        "refund_mismatch": "initiate_refund_tracer",
+        "settlement_delay": "close_no_action",
+        "reversal_confusion": "close_no_action",
+        "merchant_reference_mismatch": "request_additional_info",
+        "timeline_inconsistency": "request_additional_info",
+        "policy_eligibility": "escalate_to_senior",
+        "account_servicing_exception": "escalate_to_senior",
+        "unknown": "escalate_to_senior",
+    }
+
+    # Load all cases that have been processed (have recommendations)
+    cases_result = await db.execute(select(Case).where(Case.status.notin_(["created"])))
+    cases = cases_result.scalars().all()
+    total = len(cases)
+
+    if total == 0:
+        run = EvaluationRun(
+            id=uuid.uuid4(),
+            run_type="regression",
+            status="completed",
+            total_cases=0,
+            completed_cases=0,
+            results_summary={"message": "No processed cases to evaluate"},
+            started_at=datetime.now(UTC),
+            completed_at=datetime.now(UTC),
+        )
+        db.add(run)
+        await db.commit()
+        return {"id": str(run.id), "status": "completed", "total_cases": 0}
+
+    # Load recommendations keyed by case_id
+    rec_result = await db.execute(select(Recommendation))
+    recs_by_case: dict[uuid.UUID, Recommendation] = {}
+    for rec in rec_result.scalars().all():
+        recs_by_case[rec.case_id] = rec
+
+    # Compute metrics
+    correct = 0
+    escalated = 0
+    confidences: list[float] = []
+    safety_passed = 0
+    safety_total = 0
+    per_type: dict[str, dict] = {}
+
+    for case in cases:
+        issue = case.issue_type.value if case.issue_type else "unknown"
+        rec = recs_by_case.get(case.id)
+
+        if issue not in per_type:
+            per_type[issue] = {"total": 0, "correct": 0, "escalated": 0, "confidences": []}
+        per_type[issue]["total"] += 1
+
+        if rec:
+            expected = expected_actions.get(issue, "escalate_to_senior")
+            if rec.recommended_action == expected:
+                correct += 1
+                per_type[issue]["correct"] += 1
+            if rec.confidence_score is not None:
+                confidences.append(rec.confidence_score)
+                per_type[issue]["confidences"].append(rec.confidence_score)
+            if rec.safety_gate_passed is not None:
+                safety_total += 1
+                if rec.safety_gate_passed:
+                    safety_passed += 1
+            if rec.recommended_action in ("escalate_to_senior", "escalate_to_supervisor"):
+                escalated += 1
+                per_type[issue]["escalated"] += 1
+
+    accuracy = correct / total if total else 0.0
+    avg_conf = sum(confidences) / len(confidences) if confidences else 0.0
+    safety_rate = safety_passed / safety_total if safety_total else 0.0
+    escalation_rate = escalated / total if total else 0.0
+
+    # Per-issue-type summary
+    per_type_summary = {}
+    for issue, data in per_type.items():
+        t = data["total"]
+        per_type_summary[issue] = {
+            "total": t,
+            "correct": data["correct"],
+            "accuracy": round(data["correct"] / t, 3) if t else 0.0,
+            "escalated": data["escalated"],
+            "avg_confidence": round(sum(data["confidences"]) / len(data["confidences"]), 3)
+            if data["confidences"]
+            else None,
+        }
+
+    # Agent run latency
+    agent_latency_result = await db.execute(
+        select(func.avg(AgentRun.duration_ms)).where(AgentRun.status == "completed")
+    )
+    avg_latency = agent_latency_result.scalar() or 0
+
+    results_summary = {
+        "accuracy": round(accuracy, 3),
+        "avg_confidence": round(avg_conf, 3),
+        "safety_gate_pass_rate": round(safety_rate, 3),
+        "avg_latency_ms": round(float(avg_latency), 1),
+        "correct_actions": correct,
+        "incorrect_actions": total - correct,
+        "escalation_rate": round(escalation_rate, 3),
+        "per_issue_type": per_type_summary,
+    }
 
     run = EvaluationRun(
         id=uuid.uuid4(),
@@ -215,18 +338,16 @@ async def run_evaluation(db: AsyncSession = Depends(get_db)):
         status="completed",
         total_cases=total,
         completed_cases=total,
-        results_summary={
-            "accuracy": 0.87,
-            "avg_confidence": 0.82,
-            "safety_gate_pass_rate": 0.95,
-            "avg_latency_ms": 1250,
-            "correct_actions": int(total * 0.87),
-            "incorrect_actions": total - int(total * 0.87),
-            "escalation_rate": 0.15,
-        },
+        results_summary=results_summary,
         started_at=datetime.now(UTC),
         completed_at=datetime.now(UTC),
     )
     db.add(run)
     await db.commit()
-    return {"id": str(run.id), "status": "completed", "message": "Evaluation completed"}
+
+    return {
+        "id": str(run.id),
+        "status": "completed",
+        "total_cases": total,
+        "results": results_summary,
+    }
