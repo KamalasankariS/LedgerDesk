@@ -1,10 +1,10 @@
-"""LLM client abstraction."""
+"""LLM client abstraction — supports OpenAI, Anthropic, and mock providers."""
 
 import json
 import re
 
-import structlog
 import httpx
+import structlog
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 logger = structlog.get_logger()
@@ -51,6 +51,48 @@ class LLMClient:
             resp.raise_for_status()
             data = resp.json()
             return data["choices"][0]["message"]["content"]
+
+    async def complete_json(
+        self,
+        prompt: str,
+        system_prompt: str | None = None,
+        temperature: float = 0.1,
+    ) -> dict:
+        """Send a completion request and parse the response as JSON."""
+        text = await self.complete(prompt, system_prompt, temperature)
+        return parse_json_response(text)
+
+
+class AnthropicLLMClient:
+    """Anthropic Claude LLM client."""
+
+    def __init__(self, api_key: str, model: str = "claude-sonnet-4-20250514"):
+        import anthropic
+
+        self.client = anthropic.AsyncAnthropic(api_key=api_key)
+        self.model = model
+
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=10))
+    async def complete(
+        self,
+        prompt: str,
+        system_prompt: str | None = None,
+        temperature: float = 0.2,
+        max_tokens: int = 4000,
+    ) -> str:
+        """Send a completion request to Claude and return the response text."""
+        kwargs: dict = {
+            "model": self.model,
+            "max_tokens": max_tokens,
+            "messages": [{"role": "user", "content": prompt}],
+        }
+        if temperature > 0:
+            kwargs["temperature"] = temperature
+        if system_prompt:
+            kwargs["system"] = system_prompt
+
+        response = await self.client.messages.create(**kwargs)
+        return response.content[0].text
 
     async def complete_json(
         self,
@@ -115,10 +157,44 @@ class MockLLMClient:
         else:
             return {"response": "Mock response", "status": "ok"}
 
+    @staticmethod
+    def _extract_description(prompt: str) -> str:
+        """Extract the case description from a formatted prompt template.
+
+        Avoids matching keywords in the template's category listings or
+        action definitions — only the user-supplied description matters.
+        """
+        p = prompt.lower()
+        # Find "- description:" field and grab text after it
+        marker = "description:"
+        idx = p.find(marker)
+        if idx == -1:
+            return p
+        start = idx + len(marker)
+        # Find the end: next "- " prefixed field or section header
+        rest = p[start:]
+        for end_marker in (
+            "\n- transaction",
+            "\n- account",
+            "\n- amount",
+            "\n- title",
+            "\ntask:",
+            "\npolicy",
+            "\npossible",
+            "\nrules:",
+            "\navailable tools",
+            "\nretrieval context",
+            "\ntool evidence",
+        ):
+            end = rest.find(end_marker)
+            if end != -1:
+                return rest[:end]
+        return rest
+
     def _mock_triage(self, prompt: str) -> dict:
         issue_type = "duplicate_charge"
-        p = prompt.lower()
-        if "authorization" in p or "pending" in p or "hold" in p:
+        p = self._extract_description(prompt)
+        if "authorization" in p or "pending" in p or " hold" in p:
             issue_type = "pending_authorization"
         elif "refund" in p:
             issue_type = "refund_mismatch"
@@ -190,7 +266,7 @@ class MockLLMClient:
 
     def _mock_decision(self, prompt: str) -> dict:  # noqa: C901
         """Generate a detailed, case-specific mock recommendation."""
-        p = prompt.lower()
+        p = self._extract_description(prompt)
 
         # ── Handle new issue types first ──────────────────────────────
         if "timeline" in p and ("inconsisten" in p or "sequence" in p or "before auth" in p):
