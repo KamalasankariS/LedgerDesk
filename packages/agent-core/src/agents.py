@@ -9,7 +9,7 @@ import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.agent import AgentRun
-from llm import LLMClient, MockLLMClient
+from llm import AnthropicLLMClient, LLMClient, MockLLMClient
 from prompts import (
     TRIAGE_PROMPT,
     TOOL_PLANNER_PROMPT,
@@ -36,7 +36,7 @@ async def _run_agent(
     case_id: uuid.UUID,
     agent_type: str,
     prompt: str,
-    llm: LLMClient | MockLLMClient,
+    llm: LLMClient | AnthropicLLMClient | MockLLMClient,
     trace_id: str,
     prompt_version: str = "1.0",
 ) -> AgentResult:
@@ -113,7 +113,7 @@ async def run_triage_agent(
     db: AsyncSession,
     case_id: uuid.UUID,
     case_data: dict,
-    llm: LLMClient | MockLLMClient,
+    llm: LLMClient | AnthropicLLMClient | MockLLMClient,
     trace_id: str,
 ) -> AgentResult:
     """Run the triage agent to classify a case."""
@@ -134,7 +134,7 @@ async def run_tool_planner(
     case_id: uuid.UUID,
     case_data: dict,
     retrieval_context: str,
-    llm: LLMClient | MockLLMClient,
+    llm: LLMClient | AnthropicLLMClient | MockLLMClient,
     trace_id: str,
 ) -> AgentResult:
     """Run the tool planner to decide which tools to call."""
@@ -156,7 +156,7 @@ async def run_decision_agent(
     case_data: dict,
     policy_citations: str,
     tool_evidence: str,
-    llm: LLMClient | MockLLMClient,
+    llm: LLMClient | AnthropicLLMClient | MockLLMClient,
     trace_id: str,
 ) -> AgentResult:
     """Run the decision agent to generate a recommendation."""
@@ -178,7 +178,7 @@ async def run_safety_gate(
     case_id: uuid.UUID,
     recommendation: dict,
     amount: float | None,
-    llm: LLMClient | MockLLMClient,
+    llm: LLMClient | AnthropicLLMClient | MockLLMClient,
     trace_id: str,
 ) -> AgentResult:
     """Run the safety gate to validate a recommendation."""
@@ -204,7 +204,7 @@ async def run_case_writer(
     case_data: dict,
     recommendation: dict,
     evidence_summary: str,
-    llm: LLMClient | MockLLMClient,
+    llm: LLMClient | AnthropicLLMClient | MockLLMClient,
     trace_id: str,
 ) -> AgentResult:
     """Run the case writer to generate notes and summaries."""
