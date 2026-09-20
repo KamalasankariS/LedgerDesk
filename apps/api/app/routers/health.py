@@ -47,7 +47,25 @@ async def readiness(db: AsyncSession = Depends(get_db)):
         checks["redis"] = "unhealthy"
 
     # LLM connectivity check
-    if settings.openai_api_key:
+    provider = settings.llm_provider
+    if provider == "anthropic" or (provider == "auto" and settings.anthropic_api_key):
+        try:
+            import httpx
+
+            async with httpx.AsyncClient(timeout=5) as client:
+                resp = await client.get(
+                    "https://api.anthropic.com/v1/models",
+                    headers={
+                        "x-api-key": settings.anthropic_api_key,
+                        "anthropic-version": "2023-06-01",
+                    },
+                )
+                checks["llm"] = "healthy" if resp.status_code == 200 else "degraded"
+                checks["llm_provider"] = "anthropic"
+        except Exception:
+            checks["llm"] = "unhealthy"
+            checks["llm_provider"] = "anthropic"
+    elif provider == "openai" or (provider == "auto" and settings.openai_api_key):
         try:
             import httpx
 
@@ -57,10 +75,13 @@ async def readiness(db: AsyncSession = Depends(get_db)):
                     headers={"Authorization": f"Bearer {settings.openai_api_key}"},
                 )
                 checks["llm"] = "healthy" if resp.status_code == 200 else "degraded"
+                checks["llm_provider"] = "openai"
         except Exception:
             checks["llm"] = "unhealthy"
+            checks["llm_provider"] = "openai"
     else:
         checks["llm"] = "mock_mode"
+        checks["llm_provider"] = "mock"
 
     all_healthy = all(v in ("healthy", "mock_mode") for v in checks.values())
     return {"status": "ready" if all_healthy else "not_ready", "checks": checks}
