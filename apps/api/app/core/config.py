@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     # LLM
     openai_api_key: str = ""
     openai_base_url: str = "https://api.openai.com/v1"
+    anthropic_api_key: str = ""
+    llm_provider: str = "auto"  # auto, openai, anthropic, mock
     llm_model: str = "gpt-4o"
 
     # App
