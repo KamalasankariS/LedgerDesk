@@ -137,8 +137,8 @@ Retrieval (RAG) and tool execution are orchestrator steps, not standalone agents
 | Database | PostgreSQL 16 + pgvector |
 | Cache/Queue | Redis, Celery |
 | ORM | SQLAlchemy 2.0, Alembic |
-| LLM | OpenAI-compatible provider abstraction |
-| Logging | structlog (structured JSON) |
+| LLM | Anthropic Claude + OpenAI (multi-provider) |
+| Observability | structlog (structured JSON) + Prometheus metrics |
 | Containers | Docker, Docker Compose |
 | CI/CD | GitHub Actions |
 
@@ -305,22 +305,41 @@ LedgerDesk tracks application performance across the [10 key APM metrics](https:
 | `GET /api/v1/metrics/by-issue-type` | Per-issue-type accuracy, escalation rate, confidence |
 | `GET /api/v1/metrics/workflow` | Tracked workflow metrics (step timing, retrieval quality, overrides) |
 | `GET /api/v1/metrics/evaluations` | Evaluation run history and results |
+| `GET /api/v1/metrics/prometheus` | Prometheus-format metrics for scraping |
+
+---
+
+## Limitations & Design Decisions
+
+This is a portfolio project that demonstrates platform architecture and safety-first agent design. The following are intentional simplifications:
+
+| Area | Current State | Production Path |
+|------|--------------|-----------------|
+| **LLM Reasoning** | Multi-provider: `AnthropicLLMClient` (Claude), `LLMClient` (OpenAI), `MockLLMClient` (fallback). Set `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` for real AI. | Already production-ready — just add API key |
+| **Embeddings** | `text-embedding-3-small` via OpenAI when API key is set; local TF-IDF hashing as zero-cost fallback | Fully wired through pgvector cosine search |
+| **Observability** | Prometheus metrics at `/api/v1/metrics/prometheus`, structured JSON logging, Apdex scoring, p95/p99 latency | Add Grafana dashboards, alerting rules |
+| **Evaluation Set** | 30 hand-authored cases (20 standard + 10 adversarial) covering 10 issue types | Held-out cases from real ops data with inter-annotator agreement |
+| **Tool Execution** | Read-only mock tools returning seed JSON data | Plug in real internal APIs — tool interface and invocation logging are production-ready |
+| **Authentication** | JWT auth with bcrypt exists but most routes don't enforce it | Apply `require_analyst` / `require_role` dependencies to protected endpoints |
+
+The pipeline is provider-agnostic: every agent calls `llm.complete_json()` through the same interface. Setting `ANTHROPIC_API_KEY` activates Claude; setting `OPENAI_API_KEY` activates GPT-4o; omitting both falls back to `MockLLMClient`. No code changes needed.
 
 ---
 
 ## Roadmap
 
 ### v1.1
-- [ ] Full LLM-powered agent orchestration (LangGraph)
-- [ ] Embedding-based policy retrieval
+- [x] Multi-provider LLM orchestration (Anthropic Claude + OpenAI + mock fallback)
+- [x] Embedding-based policy retrieval (pgvector + OpenAI embeddings + local fallback)
 - [ ] Similar case search with vector similarity
-- [ ] Real-time workflow progress updates (WebSocket)
+- [x] Real-time workflow progress updates (SSE streaming at `POST /api/v1/workflow/run/stream`)
+- [x] Prometheus metrics export (`GET /api/v1/metrics/prometheus`)
 
 ### v1.2
 - [ ] Multi-tenant workspace support
-- [ ] Role-based access control
+- [x] Role-based access control (JWT + `require_role` dependencies)
 - [ ] Batch case processing
-- [ ] Evaluation regression suite
+- [x] Evaluation regression suite (per-issue-type accuracy, action correctness)
 - [ ] Performance dashboards with charts
 
 ### v2.0
