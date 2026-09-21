@@ -2,12 +2,13 @@ services:
   postgres:
     image: pgvector/pgvector:pg16
     container_name: ledgerdesk-postgres
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ledgerdesk
       POSTGRES_PASSWORD: ledgerdesk_dev
       POSTGRES_DB: ledgerdesk
     ports:
-      - "5433:5432"
+      - "5434:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -19,6 +20,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: ledgerdesk-redis
+    restart: unless-stopped
     ports:
       - "6379:6379"
     healthcheck:
@@ -32,6 +34,7 @@ services:
       context: ./apps/api
       dockerfile: Dockerfile
     container_name: ledgerdesk-api
+    restart: unless-stopped
     environment:
       DATABASE_URL: postgresql+asyncpg://ledgerdesk:ledgerdesk_dev@postgres:5432/ledgerdesk
       REDIS_URL: redis://redis:6379/0
@@ -49,6 +52,7 @@ services:
         condition: service_healthy
     volumes:
       - ./apps/api:/app
+      - ./packages:/packages
       - ./sample_data:/app/sample_data
     deploy:
       resources:
@@ -63,6 +67,7 @@ services:
       context: ./apps/api
       dockerfile: Dockerfile
     container_name: ledgerdesk-worker
+    restart: unless-stopped
     command: celery -A app.workers.celery_app worker --loglevel=info
     environment:
       DATABASE_URL: postgresql+asyncpg://ledgerdesk:ledgerdesk_dev@postgres:5432/ledgerdesk
@@ -78,6 +83,7 @@ services:
         condition: service_healthy
     volumes:
       - ./apps/api:/app
+      - ./packages:/packages
       - ./sample_data:/app/sample_data
     deploy:
       resources:
@@ -92,6 +98,7 @@ services:
       context: ./apps/web
       dockerfile: Dockerfile
     container_name: ledgerdesk-web
+    restart: unless-stopped
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8000
     ports:
@@ -105,6 +112,32 @@ services:
           cpus: "0.5"
         reservations:
           memory: 128M
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: ledgerdesk-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    depends_on:
+      - api
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: ledgerdesk-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
 
 volumes:
   pgdata:

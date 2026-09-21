@@ -22,11 +22,20 @@ logger = structlog.get_logger()
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 
+# Inside Docker the app lives at /app and packages are mounted at /packages
+_DOCKER_DATA = Path("/app/sample_data")
+_DOCKER_PKGS = Path("/packages")
+
 # Make the retrieval package importable from seed context
-sys.path.insert(0, str(PROJECT_ROOT / "packages" / "retrieval" / "src"))
+_retrieval_src = (
+    _DOCKER_PKGS / "retrieval" / "src"
+    if _DOCKER_PKGS.exists()
+    else PROJECT_ROOT / "packages" / "retrieval" / "src"
+)
+sys.path.insert(0, str(_retrieval_src))
 from indexer import index_all_policies  # noqa: E402
 
-DATA_DIR = PROJECT_ROOT / "sample_data"
+DATA_DIR = _DOCKER_DATA if _DOCKER_DATA.exists() else PROJECT_ROOT / "sample_data"
 
 
 async def seed():
@@ -254,6 +263,13 @@ async def seed():
         logger.info("seeding_complete")
 
     await engine.dispose()
+
+    # Invalidate the main app's connection pool so asyncpg doesn't use
+    # stale prepared-statement caches after the schema was recreated.
+    from app.core.database import engine as app_engine
+
+    await app_engine.dispose()
+    logger.info("app_connection_pool_reset")
 
 
 if __name__ == "__main__":
