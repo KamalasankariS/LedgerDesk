@@ -5,11 +5,12 @@ import logging
 from pathlib import Path
 
 from .evaluator import (
+    EvalCase,
     EvalResult,
     EvalSummary,
-    load_eval_cases,
     compute_summary,
     format_eval_report,
+    load_eval_cases,
 )
 
 logger = logging.getLogger(__name__)
@@ -17,11 +18,15 @@ logger = logging.getLogger(__name__)
 
 async def _evaluate_single_case(
     client,
-    eval_case: "EvalCase",
+    eval_case: EvalCase,
     api_case: dict,
 ) -> EvalResult:
     """Evaluate a single case against the API."""
-    result = EvalResult(case_number=eval_case.case_number)
+    result = EvalResult(
+        case_number=eval_case.case_number,
+        issue_type=eval_case.issue_type,
+        expected_action=eval_case.expected_action,
+    )
     case_id = api_case["id"]
 
     try:
@@ -54,9 +59,13 @@ async def _evaluate_single_case(
         if recs:
             result.recommendation_present = True
             latest = recs[0]
+            result.actual_action = latest.get("recommended_action")
             result.confidence_score = latest.get("confidence_score")
             result.citations_present = bool(latest.get("policy_citations"))
             result.safety_gate_passed = latest.get("safety_gate_passed")
+            # Check action correctness
+            if eval_case.expected_action:
+                result.action_correct = result.actual_action == eval_case.expected_action
 
     except Exception as e:
         result.errors.append(str(e))
