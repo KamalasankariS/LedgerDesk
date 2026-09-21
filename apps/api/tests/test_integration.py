@@ -37,27 +37,25 @@ def _db_reachable() -> bool:
 
 pytestmark = pytest.mark.skipif(not _db_reachable(), reason="PostgreSQL not available")
 
-# Use a dedicated test engine so we don't pollute the dev database
-TEST_ENGINE = create_async_engine(settings.database_url, echo=False)
-TestSession = async_sessionmaker(TEST_ENGINE, class_=AsyncSession, expire_on_commit=False)
-
-
-@pytest.fixture(autouse=True)
-async def setup_db():
-    """Create all tables before tests, drop after."""
-    async with TEST_ENGINE.begin() as conn:
-        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-        await conn.run_sync(Base.metadata.create_all)
-    yield
-    async with TEST_ENGINE.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-
 
 @pytest.fixture
 async def db():
-    async with TestSession() as session:
+    """Create a fresh engine + session per test to avoid event-loop affinity issues."""
+    engine = create_async_engine(settings.database_url, echo=False)
+    session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+    async with engine.begin() as conn:
+        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+        await conn.run_sync(Base.metadata.create_all)
+
+    async with session_factory() as session:
         yield session
         await session.rollback()
+
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+
+    await engine.dispose()
 
 
 @pytest.fixture
