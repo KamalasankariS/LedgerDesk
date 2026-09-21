@@ -12,8 +12,10 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.auth import require_analyst
 from app.core.database import async_session, get_db
 from app.models.case import Case, CaseStatus
+from app.models.user import User
 
 logger = structlog.get_logger()
 router = APIRouter()
@@ -55,7 +57,11 @@ def _ensure_package_paths():
 
 
 @router.post("/run")
-async def run_workflow(req: WorkflowRunRequest, db: AsyncSession = Depends(get_db)):
+async def run_workflow(
+    req: WorkflowRunRequest,
+    current_user: User = Depends(require_analyst),
+    db: AsyncSession = Depends(get_db),
+):
     """Run the full agent workflow on a case."""
     _ensure_package_paths()
     from orchestrator import run_full_workflow
@@ -71,7 +77,10 @@ async def run_workflow(req: WorkflowRunRequest, db: AsyncSession = Depends(get_d
 
 
 @router.post("/run/stream")
-async def run_workflow_stream(req: WorkflowRunRequest):
+async def run_workflow_stream(
+    req: WorkflowRunRequest,
+    current_user: User = Depends(require_analyst),
+):
     """Run workflow with SSE streaming of step progress."""
     _ensure_package_paths()
 
