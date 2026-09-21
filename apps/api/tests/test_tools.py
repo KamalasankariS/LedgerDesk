@@ -55,9 +55,9 @@ class TestSeedDataIntegrity:
         acct_ids = {a["account_id"] for a in accounts}
         for case in cases:
             if case.get("account_id"):
-                assert (
-                    case["account_id"] in acct_ids
-                ), f"Case {case['case_number']} references unknown account {case['account_id']}"
+                assert case["account_id"] in acct_ids, (
+                    f"Case {case['case_number']} references unknown account {case['account_id']}"
+                )
 
     def test_policies_exist(self):
         policies_dir = DATA_DIR / "policies"
