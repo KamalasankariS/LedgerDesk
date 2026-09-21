@@ -7,11 +7,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.auth import require_analyst
 from app.core.config import settings
 from app.core.database import get_db
 from app.models.agent import Recommendation
 from app.models.audit import AuditEvent
 from app.models.case import Case, CaseNote, CaseStatus, CaseStatusHistory
+from app.models.user import User
 from app.schemas.audit import AnalystActionCreate
 from app.schemas.case import (
     CaseCreate,
@@ -81,6 +83,7 @@ async def list_cases(
 @router.post("", response_model=CaseResponse, status_code=201)
 async def create_case(
     case_in: CaseCreate,
+    current_user: User = Depends(require_analyst),
     db: AsyncSession = Depends(get_db),
 ):
     case = Case(
@@ -159,6 +162,7 @@ async def get_case(case_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
 async def update_case(
     case_id: uuid.UUID,
     case_in: CaseUpdate,
+    current_user: User = Depends(require_analyst),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(Case).where(Case.id == case_id))
@@ -198,6 +202,7 @@ async def get_case_recommendations(case_id: uuid.UUID, db: AsyncSession = Depend
 async def add_case_note(
     case_id: uuid.UUID,
     note_in: CaseNoteCreate,
+    current_user: User = Depends(require_analyst),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(Case).where(Case.id == case_id))
@@ -229,6 +234,7 @@ async def get_case_notes(case_id: uuid.UUID, db: AsyncSession = Depends(get_db))
 async def perform_analyst_action(
     case_id: uuid.UUID,
     action_in: AnalystActionCreate,
+    current_user: User = Depends(require_analyst),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(Case).where(Case.id == case_id))
