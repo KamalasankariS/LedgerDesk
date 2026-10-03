@@ -39,10 +39,40 @@ class CaseService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
+    # Valid pipeline order for system transitions
+    PIPELINE_ORDER = [
+        CaseStatus.CREATED,
+        CaseStatus.TRIAGED,
+        CaseStatus.CONTEXT_RETRIEVED,
+        CaseStatus.TOOLS_SELECTED,
+        CaseStatus.TOOLS_EXECUTED,
+        CaseStatus.RECOMMENDATION_GENERATED,
+        CaseStatus.SAFETY_CHECKED,
+        CaseStatus.AWAITING_REVIEW,
+        CaseStatus.APPROVED,
+        CaseStatus.COMPLETED,
+    ]
+
     async def transition_status(
         self, case: Case, new_status: CaseStatus, actor: str, reason: str | None = None
     ):
         old_status = case.status
+
+        # Validate: must follow pipeline order or be a known analyst action transition
+        old_idx = self.PIPELINE_ORDER.index(old_status) if old_status in self.PIPELINE_ORDER else -1
+        new_idx = self.PIPELINE_ORDER.index(new_status) if new_status in self.PIPELINE_ORDER else -1
+        analyst_targets = {CaseStatus.REJECTED, CaseStatus.ESCALATED}
+        reopen_from = {CaseStatus.APPROVED, CaseStatus.REJECTED, CaseStatus.COMPLETED}
+
+        is_pipeline_step = old_idx >= 0 and new_idx >= 0 and new_idx == old_idx + 1
+        is_analyst_action = new_status in analyst_targets
+        is_reopen = new_status == CaseStatus.CREATED and old_status in reopen_from
+
+        if not (is_pipeline_step or is_analyst_action or is_reopen):
+            raise ValueError(
+                f"Invalid transition from '{old_status.value}' to '{new_status.value}'"
+            )
+
         case.status = new_status
 
         history = CaseStatusHistory(
